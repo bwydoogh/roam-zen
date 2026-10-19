@@ -1,0 +1,606 @@
+// roam-zen: keep block text in place when a block gets focus.
+//
+// Roam shows rendered HTML for a block until you click it, then swaps in a
+// textarea with the raw markdown. The markers that appear (`**`, `^^`, `__`,
+// `~~`, backticks) push the text around. roam-zen shows those same markers,
+// dimmed, in the rendered view, so both views hold the same characters.
+
+const STYLE_ID = "roam-zen-style";
+
+// Each feature is a body class; its CSS only applies while that class is set.
+const FEATURES = [
+  { id: "bold", name: "Bold markers", description: "Show ** around bold text.", default: true },
+  { id: "italics", name: "Italic markers", description: "Show __ around italic text.", default: true },
+  { id: "highlight", name: "Highlight markers", description: "Show ^^ around highlighted text.", default: true },
+  { id: "strike", name: "Strikethrough markers", description: "Show ~~ around struck-through text.", default: true },
+  { id: "code", name: "Inline code markers", description: "Show backticks around inline code, in the block's own font and without padding.", default: true },
+  { id: "todo", name: "TODO and DONE", description: "Show the checkbox in place of {{ and the rest of {{[[TODO]]}} dimmed, so TODO and the text after it don't move. The brackets are dimmed more than the word.", default: true },
+  { id: "alias", name: "Alias destinations", description: "Show the whole source of an alias, [text](url), with everything but the text dimmed, so nothing moves when you edit the block.", default: true },
+  { id: "attr", name: "Attribute colons", description: "Show the second colon of an attribute, Name::, dimmed.", default: true },
+  { id: "brackets", name: "Page reference brackets", description: "Always show [[ ]] around page references, even if brackets are hidden.", default: true },
+  {
+    id: "editor",
+    name: "Style the editor",
+    description: "While you edit a block, show bold, highlight, strikethrough, code and links styled, with the markers dimmed. Styling that would change the width of the text is skipped, so the text stays put.",
+    default: true,
+  },
+  {
+    id: "flatBold",
+    name: "Width-neutral bold",
+    description: "Draw bold with a stroke instead of a bold font, so bold text is as wide as in the editor. Useful with proportional fonts; not needed with a monospace font.",
+    default: false,
+  },
+];
+
+const OPACITY_SETTING = "markerOpacity";
+const OPACITY_DEFAULT = "0.35";
+
+// Rendered (unfocused) block text. Block references and embeds render another
+// block's text, whose markers are not in this block's source, so they are left alone.
+const V = ".roam-block";
+
+// Each rendered alias gets the rest of its source, "](destination)", in an
+// attribute that CSS shows dimmed after the alias text.
+const ALIAS_TAIL = "data-roam-zen-tail";
+
+const marker = (cls, sel, text) => `
+  body.roam-zen--${cls} ${V} ${sel}::before,
+  body.roam-zen--${cls} ${V} ${sel}::after {
+    content: "${text}";
+    opacity: var(--roam-zen-marker-opacity);
+    font-weight: normal;
+    font-style: normal;
+    text-decoration: none;
+    -webkit-text-stroke: 0;
+  }
+  body.roam-zen--${cls} ${V} .rm-block-ref ${sel}::before,
+  body.roam-zen--${cls} ${V} .rm-block-ref ${sel}::after {
+    content: none;
+  }`;
+
+const CSS = `
+  body {
+    --roam-zen-marker-opacity: ${OPACITY_DEFAULT};
+    /* Words that stand for something, like TODO, are dimmed half as much as
+       pure syntax. */
+    --roam-zen-word-opacity: min(1, calc(var(--roam-zen-marker-opacity) * 2));
+  }
+
+  ${marker("bold", ".rm-bold", "**")}
+  ${marker("italics", ".rm-italics", "__")}
+  ${marker("highlight", ".rm-highlight", "^^")}
+  ${marker("strike", "del", "~~")}
+  ${marker("code", "code:not(pre code)", "`")}
+
+  body.roam-zen--alias ${V} .rm-alias::before,
+  body.roam-zen--alias ${V} .rm-alias::after {
+    opacity: var(--roam-zen-marker-opacity);
+  }
+  body.roam-zen--alias ${V} .rm-alias::before { content: "["; }
+  body.roam-zen--alias ${V} .rm-alias::after { content: "]"; }
+  body.roam-zen--alias ${V} .rm-alias[${ALIAS_TAIL}]::after { content: attr(${ALIAS_TAIL}); }
+  body.roam-zen--alias ${V} .rm-block-ref .rm-alias::before,
+  body.roam-zen--alias ${V} .rm-block-ref .rm-alias::after {
+    content: none;
+  }
+
+  /* Roam renders "Name::" as "Name:"; the second colon comes back dimmed. */
+  body.roam-zen--attr ${V} .rm-attr-ref::after {
+    content: ":";
+    opacity: var(--roam-zen-marker-opacity);
+    font-weight: normal;
+    -webkit-text-stroke: 0;
+  }
+  body.roam-zen--attr ${V} .rm-block-ref .rm-attr-ref::after {
+    content: none;
+  }
+
+  /* The editor shows code in the block's font with no box around it. */
+  body.roam-zen--code ${V} code:not(pre code) {
+    font: inherit;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  body.roam-zen--brackets ${V} .rm-page-ref__brackets {
+    display: inline !important;
+    visibility: visible !important;
+    color: inherit;
+    opacity: var(--roam-zen-marker-opacity);
+  }
+
+  /* TODO/DONE: roam-zen adds a label after the checkbox that holds the rest
+     of the source, "{{[[TODO]]}}", so the box is exactly as wide as in the
+     editor. Its "{{" and "}}" are invisible (the checkbox sits on top of the
+     "{{"); the brackets are dimmed and the word less so. */
+  body.roam-zen--todo ${V} .rm-checkbox {
+    position: relative;
+    white-space: nowrap;
+  }
+  body.roam-zen--todo ${V} .rm-checkbox .check-container {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    height: auto;
+    margin: 0;
+  }
+  /* An invisible "{{" gives the checkbox's label the same width. */
+  body.roam-zen--todo ${V} .rm-checkbox .check-container::before {
+    content: "{{";
+    visibility: hidden;
+  }
+  /* Centred in the "{{", and shrunk to leave a little room on either side
+     when a narrow font makes "{{" smaller than Roam's 12px box. */
+  body.roam-zen--todo ${V} .rm-checkbox .checkmark {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    width: min(12px, 100% - 2px);
+    height: auto;
+    aspect-ratio: 1;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+  }
+  /* Roam's tick in proportions of the box instead of pixels, so it still
+     fits a shrunk box. */
+  body.roam-zen--todo ${V} .rm-checkbox .checkmark::after {
+    left: 29%;
+    top: 2%;
+    width: 42%;
+    height: 83%;
+  }
+  .roam-zen-todo .rz-hide { visibility: hidden; }
+  .roam-zen-todo .rz-m { opacity: var(--roam-zen-marker-opacity); }
+  .roam-zen-todo .rz-word { opacity: var(--roam-zen-word-opacity); }
+  .roam-zen-todo .rz-word::before { content: "TODO"; }
+  .rm-done .roam-zen-todo .rz-word::before { content: "DONE"; }
+
+  body.roam-zen--flatBold ${V} .rm-bold,
+  body.roam-zen--flatBold ${V} .rm-attr-ref {
+    font-weight: inherit;
+    -webkit-text-stroke: 0.04em currentColor;
+  }
+
+  /* Editor: the textarea's own text turns transparent and a styled copy of
+     it (the mirror) sits right behind it. The caret and selection stay the
+     textarea's own. */
+  textarea.roam-zen-editing {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    background-color: transparent !important;
+    position: relative;
+  }
+  textarea.roam-zen-editing::selection {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+  .roam-zen-mirror {
+    position: absolute;
+    pointer-events: none;
+    overflow: hidden;
+    margin: 0;
+    border-color: transparent !important;
+    border-style: solid;
+    background: transparent;
+  }
+  .roam-zen-mirror .rz-m { opacity: var(--roam-zen-marker-opacity); }
+  .roam-zen-mirror .rz-t { opacity: var(--roam-zen-word-opacity); }
+  .roam-zen-mirror .rz-b { -webkit-text-stroke: 0.04em currentColor; }
+  .roam-zen-mirror.rz-real-b .rz-b { font-weight: bold; -webkit-text-stroke: 0; }
+  .roam-zen-mirror.rz-real-i .rz-i { font-style: italic; }
+  .roam-zen-mirror .rz-h { background-color: var(--inline-highlight-color, #fef09f); }
+  .roam-zen-mirror .rz-s { text-decoration: line-through; }
+  .roam-zen-mirror .rz-c { background-color: rgba(128, 128, 128, 0.15); border-radius: 3px; }
+  .roam-zen-mirror .rz-l { color: var(--roam-zen-link-color); }
+`;
+
+// --- TODO labels ----------------------------------------------------------
+
+const TODO_LABEL = "roam-zen-todo";
+
+function addTodoLabels() {
+  for (const box of document.querySelectorAll(`${V} .rm-checkbox`)) {
+    if (box.querySelector(`:scope > .${TODO_LABEL}`)) continue;
+    const label = document.createElement("span");
+    label.className = TODO_LABEL;
+    label.setAttribute("aria-hidden", "true");
+    // The word comes from CSS, so it follows the TODO/DONE class when Roam
+    // reuses the element.
+    label.innerHTML = '<span class="rz-hide">{{</span><span class="rz-m">[[</span><span class="rz-word"></span><span class="rz-m">]]</span><span class="rz-hide">}}</span>';
+    box.append(label);
+  }
+}
+
+function removeTodoLabels() {
+  for (const label of document.querySelectorAll(`.${TODO_LABEL}`)) label.remove();
+}
+
+// --- Alias destinations -----------------------------------------------------
+
+// Aliases, [text](destination), in a block's source. The destination can
+// hold [[page]] or ((uid)), so its closing ")" is found by counting
+// parentheses. Images, ![alt](url), are not aliases.
+function findAliases(work) {
+  const found = [];
+  for (const m of work.matchAll(/(?<![!\[])\[([^\[\]\n]+)\]\(/g)) {
+    let depth = 1;
+    let end = m.index + m[0].length;
+    while (end < work.length && depth > 0) {
+      if (work[end] === "(") depth++;
+      else if (work[end] === ")") depth--;
+      else if (work[end] === "\n") break;
+      end++;
+    }
+    if (depth === 0) found.push({ start: m.index, textEnd: m.index + 1 + m[1].length, end });
+  }
+  return found;
+}
+
+function blockText(block) {
+  try {
+    const uid = block.id.slice(-9);
+    return window.roamAlphaAPI.data.pull("[:block/string]", [":block/uid", uid])?.[":block/string"] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function addAliasTails() {
+  const blocks = new Set();
+  for (const a of document.querySelectorAll(`${V} .rm-alias:not([${ALIAS_TAIL}])`)) {
+    if (!a.closest(".rm-block-ref")) blocks.add(a.closest(V));
+  }
+  for (const block of blocks) {
+    const text = blockText(block);
+    const links = [...block.querySelectorAll(".rm-alias")].filter(
+      (a) => a.closest(V) === block && !a.closest(".rm-block-ref"),
+    );
+    // Code is not markup; blank it so an alias-like snippet in it is skipped.
+    const work = text === null ? "" : text.replace(/`[^`\n]+`/g, (code) => "\0".repeat(code.length));
+    const aliases = findAliases(work);
+    // Only when roam-zen finds the same aliases Roam rendered can each tail
+    // go on the right link; otherwise show just the closing bracket.
+    const matched = aliases.length === links.length;
+    links.forEach((a, k) => {
+      a.setAttribute(ALIAS_TAIL, matched ? text.slice(aliases[k].textEnd, aliases[k].end) : "]");
+    });
+  }
+}
+
+function removeAliasTails() {
+  for (const a of document.querySelectorAll(`[${ALIAS_TAIL}]`)) a.removeAttribute(ALIAS_TAIL);
+}
+
+// --- Watching the page ------------------------------------------------------
+
+let observer = null;
+
+function decorate() {
+  if (document.body.classList.contains("roam-zen--todo")) addTodoLabels();
+  if (document.body.classList.contains("roam-zen--alias")) addAliasTails();
+}
+
+// Decorations are added in the observer callback, before the browser paints,
+// so new blocks never show up without them.
+function watchPage() {
+  const todo = document.body.classList.contains("roam-zen--todo");
+  const alias = document.body.classList.contains("roam-zen--alias");
+  if (!todo) removeTodoLabels();
+  if (!alias) removeAliasTails();
+  if ((todo || alias) && !observer) {
+    observer = new MutationObserver(decorate);
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else if (!todo && !alias && observer) {
+    observer.disconnect();
+    observer = null;
+  }
+  decorate();
+}
+
+function unwatchPage() {
+  observer?.disconnect();
+  observer = null;
+  removeTodoLabels();
+  removeAliasTails();
+}
+
+// --- Editor ---------------------------------------------------------------
+
+const PAIRS = [
+  ["**", "b"],
+  ["__", "i"],
+  ["^^", "h"],
+  ["~~", "s"],
+];
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Returns one class key per character of a block's raw text, e.g. "b" for a
+// bold letter, "m" for a marker character, "" for plain text.
+export function parse(text) {
+  const flags = Array.from({ length: text.length }, () => new Set());
+  const mark = (from, to, flag) => {
+    for (let k = from; k < to; k++) flags[k].add(flag);
+  };
+
+  // Code blocks are edited in CodeMirror, not in this textarea.
+  if (text.startsWith("```")) return flags.map(() => "");
+
+  // TODO/DONE and inline code first: nothing inside them is other markup, so
+  // they are blanked out for the passes below.
+  let work = text;
+  const blank = (from, to) => {
+    work = work.slice(0, from) + "\0".repeat(to - from) + work.slice(to);
+  };
+  for (const m of text.matchAll(/\{\{\[\[(?:TODO|DONE)\]\]\}\}/g)) {
+    const end = m.index + m[0].length;
+    mark(m.index, m.index + 4, "m");
+    mark(m.index + 4, end - 4, "t");
+    mark(end - 4, end, "m");
+    blank(m.index, end);
+  }
+  for (const m of work.matchAll(/`[^`\n]+`/g)) {
+    const end = m.index + m[0].length;
+    mark(m.index, end, "c");
+    mark(m.index, m.index + 1, "m");
+    mark(end - 1, end, "m");
+    blank(m.index, end);
+  }
+
+  // An attribute, "Name::" at the start of the block: the name and first
+  // colon bold, as Roam renders them, the second colon a marker.
+  const attr = work.match(/^[^:\n`*^~]+?::/);
+  if (attr) {
+    const end = attr[0].length;
+    mark(0, end - 1, "b");
+    mark(end - 1, end, "m");
+    blank(0, end);
+  }
+
+  for (const a of findAliases(work)) {
+    mark(a.start, a.start + 1, "m");
+    mark(a.start + 1, a.textEnd, "l");
+    mark(a.textEnd, a.end, "m");
+    blank(a.start, a.end);
+  }
+
+  for (const [token, flag] of PAIRS) {
+    const t = escapeRegExp(token);
+    for (const m of work.matchAll(new RegExp(`${t}([\\s\\S]+?)${t}`, "g"))) {
+      const end = m.index + m[0].length;
+      mark(m.index, m.index + 2, "m");
+      mark(end - 2, end, "m");
+      // A highlight's background also covers its markers, as in the rendered view.
+      mark(flag === "h" ? m.index : m.index + 2, flag === "h" ? end : end - 2, flag);
+    }
+  }
+
+  const open = [];
+  for (const m of work.matchAll(/\[\[|\]\]/g)) {
+    if (m[0] === "[[") {
+      open.push(m.index);
+    } else if (open.length) {
+      const start = open.pop();
+      mark(start, start + 2, "m");
+      mark(m.index, m.index + 2, "m");
+      mark(start + 2, m.index, "l");
+    }
+  }
+
+  // Markers keep the block's own font, colour and decoration.
+  return flags.map((set) => {
+    if (set.has("m")) for (const f of ["b", "i", "s", "c", "l"]) set.delete(f);
+    return [...set].sort().join("");
+  });
+}
+
+function render(mirror, text) {
+  const keys = parse(text);
+  const frag = document.createDocumentFragment();
+  for (let k = 0; k < text.length; ) {
+    let j = k + 1;
+    while (j < text.length && keys[j] === keys[k]) j++;
+    const piece = text.slice(k, j);
+    if (keys[k]) {
+      const span = document.createElement("span");
+      span.className = [...keys[k]].map((f) => `rz-${f}`).join(" ");
+      span.textContent = piece;
+      frag.append(span);
+    } else {
+      frag.append(piece);
+    }
+    k = j;
+  }
+  // A trailing newline only takes up a line in a div when something follows it.
+  frag.append("\u200b");
+  mirror.replaceChildren(frag);
+}
+
+// Whether bold and italic keep every glyph's width in a font (true for most
+// monospace fonts). Only then are they safe to use in the mirror. The variant
+// faces may not be loaded yet, so they are loaded before measuring; results
+// are cached per font.
+const fontChecks = new Map();
+
+function checkFont(cs) {
+  const font = (style, weight) => `${style} ${weight} ${cs.fontSize} ${cs.fontFamily}`;
+  const regular = font(cs.fontStyle, cs.fontWeight);
+  if (!fontChecks.has(regular)) {
+    const bold = font(cs.fontStyle, "bold");
+    const italic = font("italic", cs.fontWeight);
+    fontChecks.set(
+      regular,
+      Promise.all([regular, bold, italic].map((f) => document.fonts.load(f).catch(() => null))).then(() => {
+        const ctx = document.createElement("canvas").getContext("2d");
+        const sample = "The quick brown fox jumps over the lazy dog 0123456789 MWil";
+        const width = (f) => ((ctx.font = f), ctx.measureText(sample).width);
+        const base = width(regular);
+        return { bold: Math.abs(width(bold) - base) < 0.5, italic: Math.abs(width(italic) - base) < 0.5 };
+      }),
+    );
+  }
+  return fontChecks.get(regular);
+}
+
+const COPIED = [
+  "fontFamily", "fontSize", "fontWeight", "fontStyle", "fontVariant", "fontStretch",
+  "fontFeatureSettings", "fontKerning", "letterSpacing", "wordSpacing", "lineHeight",
+  "textTransform", "textIndent", "textAlign", "tabSize", "direction",
+  "whiteSpace", "wordBreak", "overflowWrap", "boxSizing",
+  "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+  "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+];
+
+let editing = null;
+
+function attach(ta) {
+  detach();
+  if (!document.body.classList.contains("roam-zen--editor")) return;
+
+  const cs = getComputedStyle(ta);
+  const mirror = document.createElement("div");
+  mirror.className = "roam-zen-mirror";
+  mirror.setAttribute("aria-hidden", "true");
+  for (const prop of COPIED) mirror.style[prop] = cs[prop];
+  mirror.style.color = cs.color;
+  checkFont(cs).then((safe) => {
+    mirror.classList.toggle("rz-real-b", safe.bold);
+    mirror.classList.toggle("rz-real-i", safe.italic);
+  });
+  const link = document.querySelector(".roam-block .rm-page-ref--link");
+  mirror.style.setProperty("--roam-zen-link-color", link ? getComputedStyle(link).color : cs.color);
+
+  ta.parentNode.insertBefore(mirror, ta);
+  editing = { ta, mirror, text: null, caret: ta.style.caretColor, color: cs.color, frame: 0 };
+  tick();
+}
+
+function detach() {
+  if (!editing) return;
+  const { ta, mirror, caret, frame } = editing;
+  cancelAnimationFrame(frame);
+  mirror.remove();
+  ta.classList.remove("roam-zen-editing");
+  ta.style.caretColor = caret;
+  editing = null;
+}
+
+// Roam changes the textarea's value without input events (autocomplete,
+// hotkeys), so the mirror follows it frame by frame while a block is edited.
+function tick() {
+  const e = editing;
+  if (!e) return;
+  if (!e.ta.isConnected) return detach();
+
+  const { ta, mirror } = e;
+  if (ta.value !== e.text) {
+    e.text = ta.value;
+    render(mirror, e.text);
+  }
+
+  mirror.style.left = `${ta.offsetLeft}px`;
+  mirror.style.top = `${ta.offsetTop}px`;
+  mirror.style.width = `${ta.offsetWidth}px`;
+  const a = ta.getBoundingClientRect();
+  const b = mirror.getBoundingClientRect();
+  if (Math.abs(a.left - b.left) > 0.5) mirror.style.left = `${ta.offsetLeft + a.left - b.left}px`;
+  if (Math.abs(a.top - b.top) > 0.5) mirror.style.top = `${ta.offsetTop + a.top - b.top}px`;
+  mirror.scrollTop = ta.scrollTop;
+
+  // If the mirror wraps onto more lines than the textarea, the styled text
+  // would sit away from the caret: fall back to Roam's plain editor for this
+  // block. (The textarea can be taller than its text, so only "more" is a
+  // reliable sign.)
+  const aligned = mirror.scrollHeight <= ta.scrollHeight + 1;
+  ta.classList.toggle("roam-zen-editing", aligned);
+  ta.style.caretColor = aligned ? e.color : e.caret;
+  mirror.style.visibility = aligned ? "visible" : "hidden";
+
+  e.frame = requestAnimationFrame(tick);
+}
+
+function onFocusIn(event) {
+  if (event.target.matches?.("textarea.rm-block-input")) attach(event.target);
+}
+
+function onFocusOut(event) {
+  if (editing && event.target === editing.ta) detach();
+}
+
+let extensionAPI = null;
+
+function read(id, fallback) {
+  const value = extensionAPI.settings.get(id);
+  return value === undefined || value === null ? fallback : value;
+}
+
+function apply() {
+  for (const f of FEATURES) {
+    document.body.classList.toggle(`roam-zen--${f.id}`, Boolean(read(f.id, f.default)));
+  }
+  document.body.style.setProperty("--roam-zen-marker-opacity", read(OPACITY_SETTING, OPACITY_DEFAULT));
+  if (!document.body.classList.contains("roam-zen--editor")) detach();
+  watchPage();
+}
+
+function onload({ extensionAPI: api }) {
+  extensionAPI = api;
+
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = CSS;
+  document.head.appendChild(style);
+
+  api.settings.panel.create({
+    tabTitle: "roam-zen",
+    settings: [
+      ...FEATURES.map((f) => ({
+        id: f.id,
+        name: f.name,
+        description: f.description,
+        action: {
+          type: "switch",
+          onChange: () => setTimeout(apply),
+        },
+      })),
+      {
+        id: OPACITY_SETTING,
+        name: "Marker opacity",
+        description: "How visible the markers are.",
+        action: {
+          type: "select",
+          items: ["0.2", "0.35", "0.5", "0.75", "1"],
+          onChange: () => setTimeout(apply),
+        },
+      },
+    ],
+  });
+
+  // Settings start unset; seed them so each switch shows its default.
+  for (const f of FEATURES) {
+    if (api.settings.get(f.id) === undefined) api.settings.set(f.id, f.default);
+  }
+  if (api.settings.get(OPACITY_SETTING) === undefined) api.settings.set(OPACITY_SETTING, OPACITY_DEFAULT);
+
+  apply();
+  document.addEventListener("focusin", onFocusIn);
+  document.addEventListener("focusout", onFocusOut);
+  if (document.activeElement) onFocusIn({ target: document.activeElement });
+}
+
+function onunload() {
+  document.removeEventListener("focusin", onFocusIn);
+  document.removeEventListener("focusout", onFocusOut);
+  detach();
+  unwatchPage();
+  document.getElementById(STYLE_ID)?.remove();
+  for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
+  document.body.style.removeProperty("--roam-zen-marker-opacity");
+  extensionAPI = null;
+}
+
+export default { onload, onunload };
