@@ -1,44 +1,79 @@
 # roam-zen
 
-Stops Roam Research block text from jumping when you click into a block.
+Keeps the text of a block from jumping when you click into it.
 
-When a block is not focused, Roam hides markdown markers like `**`, `^^` and `__`. When you click into it, Roam swaps in a text editor that shows them again, and the text reflows. roam-zen shows those markers, dimmed, in the rendered view as well, so both views contain the same characters and the text stays where it is.
+## Why
 
-## What it covers
+When a block isn't focused, Roam hides its markup: `**bold**` shows as bold
+text without the asterisks, `[text](url)` as a link. Click into the block and
+all that markup appears again. Words jump to another line, the block grows
+taller, and the spot you meant to click is suddenly somewhere else.
 
-| Markup | Rendered view shows |
-| --- | --- |
-| `**bold**` | dimmed `**` around the bold text |
-| `__italic__` | dimmed `__` |
-| `^^highlight^^` | dimmed `^^` |
-| `~~strikethrough~~` | dimmed `~~` |
-| `` `code` `` | dimmed backticks; the code box and its padding are removed |
-| `[[page]]` | brackets always shown, dimmed like the other markers |
-| `[text](url)` | the whole source: the alias text as a link, `[`, `](url)` dimmed |
-| `Name::` | the bold `Name:` plus a dimmed second `:` |
-| `{{[[TODO]]}}` / `{{[[DONE]]}}` | the checkbox in place of `{{`, then `[[TODO]]` with the brackets dimmed and the word less so; the `}}` keeps its space but is invisible. TODO and the text after it stay where they are in the editor |
+roam-zen makes both views show the same characters in the same place. When a
+block isn't focused, the markup stays visible but dimmed. When you edit it, the
+formatting stays visible too.
 
-Each one can be switched off in the extension's settings. The marker opacity is adjustable; words like TODO are dimmed half as much.
+## What you'll see
 
-**Width-neutral bold** (off by default): with a proportional font, bold letters are wider than regular ones, so a bold word or attribute name still shifts a little when you click in. This option draws bold with a stroke instead, so bold keeps the regular width. Monospace fonts don't need it.
+| You type | Without focus you see |
+|---|---|
+| `**bold**` | the bold text with dimmed `**` around it |
+| `__italic__` | the italic text with dimmed `__` |
+| `^^highlight^^` | the highlight with dimmed `^^` |
+| `~~strikethrough~~` | the struck-through text with dimmed `~~` |
+| `` `code` `` | the code with dimmed backticks, in the block's own font |
+| `[[page]]` | the link with dimmed brackets |
+| `[text](url)` | the link text, with `[` and `](url)` dimmed |
+| `Name::` | the bold attribute name with a dimmed extra `:` |
+| `{{[[TODO]]}}` | the checkbox, followed by a dimmed `[[TODO]]` |
 
-## Styled editor
+Brackets and other markup are dimmed the most. Words like TODO and DONE are
+dimmed less, so you read "☐ TODO" first.
 
-While you edit a block, roam-zen also styles the raw text: bold, highlight, strikethrough, inline code, page links, aliases and attribute names look like they do in the rendered view, with the markers (and `{{[[TODO]]}}`) dimmed. Switch it off with **Style the editor**.
+While you edit a block, the raw text keeps its formatting: bold stays bold,
+highlights stay highlighted, links keep their colour, and the markup is dimmed.
 
-It works by making the editor's own text transparent and drawing a styled copy right behind it; the caret and selection stay Roam's. Styling that would change the width of the text is skipped, so nothing moves:
+## Settings
 
-- Bold and italic use the font's real bold and italic faces only when they are as wide as the regular face (true for most monospace fonts). Otherwise bold is drawn with a stroke and italic is left upright.
-- If the styled copy still wraps onto more lines than the editor, roam-zen falls back to Roam's plain editor for that block.
+Everything can be switched on or off under **Settings → roam-zen**:
 
-## What it can't fix
+- **Bold, italic, highlight, strikethrough and inline code markers**
+- **Alias destinations** — show the `(url)` of an alias
+- **Attribute colons** — show the second colon of `Name::`
+- **TODO and DONE** — show the rest of `{{[[TODO]]}}` next to the checkbox
+- **Page reference brackets** — always show `[[ ]]`
+- **Style the editor** — keep the formatting while you edit
+- **Width-neutral bold** (off by default) — see below
+- **Marker opacity** — how strongly the markup is dimmed
 
-Markup whose source looks nothing like its rendered form still shifts: block references `((uid))`, embeds, the older `{{TODO}}` form, images, LaTeX and hidden tags such as `#.class`.
+### Monospace or not?
 
-## Install for development
+roam-zen works best with a monospace font. In other fonts, bold letters are
+wider than regular ones, so a bold word still shifts a few pixels when you
+click. Turn on **Width-neutral bold** to fix that. Bold then looks slightly
+different, but takes up the same space as regular text.
 
-1. Open a graph, then **Settings → Roam Depot → Enable developer mode**.
-2. Click **Load extension** and pick this folder.
-3. After changing `extension.js`, press `ctrl-d ctrl-r` (or reload it from **Settings → Roam Depot → Developer Extensions**).
+For the same reason, italic stays upright while you edit if your font isn't
+monospace.
 
-Extensions loaded from a local folder don't start on their own: after you reload Roam, load the folder again.
+## What still jumps
+
+Some things look nothing like their markup, so they still shift when you click:
+
+- block references `((…))` and embeds
+- images and LaTeX
+- the older `{{TODO}}` form
+- hidden tags such as `#.class`
+- quotes (`> …`)
+
+## Installing
+
+roam-zen isn't in Roam Depot yet. Until then you load it through developer
+mode:
+
+1. Download this folder.
+2. In Roam, go to **Settings → Roam Depot** and click **Enable developer mode**.
+3. Click **Load extension** and pick the folder.
+
+> **Roam doesn't start it on its own.** After restarting Roam, load the folder
+> again.
