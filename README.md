@@ -26,12 +26,15 @@ formatting stays visible too.
 | `[text](url)` | the link text, with `[` and `](url)` dimmed |
 | `Name::` | the bold attribute name with a dimmed extra `:` |
 | `{{[[TODO]]}}` | the checkbox, followed by a dimmed `[[TODO]]` |
+| `> quote` | the quote with a dimmed `>`, its box drawn around the text |
+| `[[>]] [[!TIP]] Title` | the callout's icon, a dimmed `[[!TIP]]` and the title, its box drawn around the text |
 
 Brackets and other markup are dimmed the most. Words like TODO and DONE are
 dimmed less, so you read "☐ TODO" first.
 
 While you edit a block, the raw text keeps its formatting: bold stays bold,
-highlights stay highlighted, links keep their colour, and the markup is dimmed.
+highlights stay highlighted, links keep their colour, quotes and callouts keep
+their box, and the markup is dimmed.
 
 ## Settings
 
@@ -40,6 +43,8 @@ Everything can be switched on or off under **Settings → roam-zen**:
 - **Bold, italic, highlight, strikethrough and inline code markers**
 - **Alias destinations** — show the `(url)` of an alias
 - **Attribute colons** — show the second colon of `Name::`
+- **Quotes** — show the `>` of a quote
+- **Callouts** — show the `[[>]] [[!TIP]]` of a callout
 - **TODO and DONE** — show the rest of `{{[[TODO]]}}` next to the checkbox
 - **Page reference brackets** — always show `[[ ]]`
 - **Style the editor** — keep the formatting while you edit
@@ -64,7 +69,7 @@ Some things look nothing like their markup, so they still shift when you click:
 - images and LaTeX
 - the older `{{TODO}}` form
 - hidden tags such as `#.class`
-- quotes (`> …`)
+- the `>` at the start of the second and later lines of a quote
 
 ## Installing
 

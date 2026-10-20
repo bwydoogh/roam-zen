@@ -17,6 +17,8 @@ const FEATURES = [
   { id: "todo", name: "TODO and DONE", description: "Show the checkbox in place of {{ and the rest of {{[[TODO]]}} dimmed, so TODO and the text after it don't move. The brackets are dimmed more than the word.", default: true },
   { id: "alias", name: "Alias destinations", description: "Show the whole source of an alias, [text](url), with everything but the text dimmed, so nothing moves when you edit the block.", default: true },
   { id: "attr", name: "Attribute colons", description: "Show the second colon of an attribute, Name::, dimmed.", default: true },
+  { id: "quote", name: "Quotes", description: "Show the > of a quote dimmed, and draw the quote's box around the text instead of pushing the text in.", default: true },
+  { id: "callout", name: "Callouts", description: "Show the [[>]] [[!TYPE]] of a callout, with the icon in place of [[>]], and draw the callout's box around the text instead of pushing the text in.", default: true },
   { id: "brackets", name: "Page reference brackets", description: "Always show [[ ]] around page references, even if brackets are hidden.", default: true },
   {
     id: "editor",
@@ -42,6 +44,13 @@ const V = ".roam-block";
 // Each rendered alias gets the rest of its source, "](destination)", in an
 // attribute that CSS shows dimmed after the alias text.
 const ALIAS_TAIL = "data-roam-zen-tail";
+
+// The label roam-zen puts in a callout's first line.
+const CALLOUT_LABEL = "roam-zen-callout";
+
+// "[[>]] [[!TYPE]] " at the start of a callout's source, in its parts. The
+// type may end in + or -, which makes the callout foldable.
+const CALLOUT_PREFIX = /^(\[\[>\]\])(\s*)(\[\[)(![^\]\n]+)(\]\][+-]?)([ \t]*)/;
 
 const marker = (cls, sel, text) => `
   body.roam-zen--${cls} ${V} ${sel}::before,
@@ -94,6 +103,55 @@ const CSS = `
   body.roam-zen--attr ${V} .rm-block-ref .rm-attr-ref::after {
     content: none;
   }
+
+  /* Quotes: Roam's padding and margins are traded for negative margins of the
+     same size, so the box is drawn around the text instead of moving it. The
+     text then starts where it does in the editor, after a dimmed "> ". On the
+     left the box stays narrow, to keep clear of the bullet. */
+  body.roam-zen--quote ${V} blockquote.rm-bq {
+    margin: -4px -4px -4px -6px;
+    padding: 4px 4px 4px 3px;
+    border-left-width: 3px;
+  }
+  body.roam-zen--quote ${V} blockquote.rm-bq::before {
+    content: "> ";
+    opacity: var(--roam-zen-marker-opacity);
+  }
+
+  /* Callouts get the same box treatment as quotes. Their first line becomes
+     the source again: the icon in place of "[[>]]" (an invisible "[[>]]"
+     gives it that width), roam-zen's label with " [[!TYPE]] ", then the title.
+     Everything here only applies once the label is in, so a callout
+     roam-zen can't read keeps Roam's own layout. */
+  body.roam-zen--callout ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) {
+    margin: -4px -4px -4px -6px;
+    padding: 4px 4px 4px 3px;
+    border-left-width: 3px;
+  }
+  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) {
+    display: block;
+  }
+  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper {
+    display: inline-block;
+    position: relative;
+    line-height: inherit;
+  }
+  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper::before {
+    content: "[[>]]";
+    visibility: hidden;
+  }
+  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper > .bp3-popover-target {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body.roam-zen--callout ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) .rm-callout__body {
+    margin-top: 0;
+  }
+  .${CALLOUT_LABEL} .rz-m { opacity: var(--roam-zen-marker-opacity); }
+  .${CALLOUT_LABEL} .rz-t { opacity: var(--roam-zen-word-opacity); }
 
   /* The editor shows code in the block's font with no box around it. */
   body.roam-zen--code ${V} code:not(pre code) {
@@ -160,7 +218,8 @@ const CSS = `
   .rm-done .roam-zen-todo .rz-word::before { content: "DONE"; }
 
   body.roam-zen--flatBold ${V} .rm-bold,
-  body.roam-zen--flatBold ${V} .rm-attr-ref {
+  body.roam-zen--flatBold ${V} .rm-attr-ref,
+  body.roam-zen--flatBold ${V} .rm-callout__title {
     font-weight: inherit;
     -webkit-text-stroke: 0.04em currentColor;
   }
@@ -192,6 +251,23 @@ const CSS = `
   .roam-zen-mirror .rz-b { -webkit-text-stroke: 0.04em currentColor; }
   .roam-zen-mirror.rz-real-b .rz-b { font-weight: bold; -webkit-text-stroke: 0; }
   .roam-zen-mirror.rz-real-i .rz-i { font-style: italic; }
+  /* Quote and callout boxes as in the rendered view, drawn with shadows so
+     the mirror keeps the textarea's size. */
+  .roam-zen-mirror .rz-k { color: var(--roam-zen-callout-color); }
+  .roam-zen-mirror.rz-callout {
+    background-color: var(--roam-zen-callout-bg);
+    box-shadow:
+      -3px 0 0 0 var(--roam-zen-callout-bg),
+      4px 0 0 0 var(--roam-zen-callout-bg),
+      -6px 0 0 0 var(--roam-zen-callout-bar);
+  }
+  .roam-zen-mirror.rz-quote {
+    background-color: var(--roam-zen-quote-bg);
+    box-shadow:
+      -3px 0 0 0 var(--roam-zen-quote-bg),
+      4px 0 0 0 var(--roam-zen-quote-bg),
+      -6px 0 0 0 var(--roam-zen-quote-bar);
+  }
   .roam-zen-mirror .rz-h { background-color: var(--inline-highlight-color, #fef09f); }
   .roam-zen-mirror .rz-s { text-decoration: line-through; }
   .roam-zen-mirror .rz-c { background-color: rgba(128, 128, 128, 0.15); border-radius: 3px; }
@@ -275,26 +351,60 @@ function removeAliasTails() {
   for (const a of document.querySelectorAll(`[${ALIAS_TAIL}]`)) a.removeAttribute(ALIAS_TAIL);
 }
 
+// --- Callouts --------------------------------------------------------------
+
+function addCalloutLabels() {
+  for (const header of document.querySelectorAll(`${V} .rm-callout__header`)) {
+    if (header.querySelector(`:scope > .${CALLOUT_LABEL}`) || header.closest(".rm-block-ref")) continue;
+    const title = header.querySelector(":scope > .rm-callout__title");
+    const text = blockText(header.closest(V));
+    const prefix = text?.match(CALLOUT_PREFIX);
+    if (!title || !prefix) continue;
+    const [, , gap, open, type, close, after] = prefix;
+    const label = document.createElement("span");
+    label.className = CALLOUT_LABEL;
+    label.setAttribute("aria-hidden", "true");
+    const part = (cls, content) => {
+      const span = document.createElement("span");
+      span.className = cls;
+      span.textContent = content;
+      return span;
+    };
+    label.append(gap, part("rz-m", open), part("rz-t", type), part("rz-m", close), after);
+    header.insertBefore(label, title);
+  }
+}
+
+function removeCalloutLabels() {
+  for (const label of document.querySelectorAll(`.${CALLOUT_LABEL}`)) label.remove();
+}
+
 // --- Watching the page ------------------------------------------------------
 
 let observer = null;
 
+// Each decoration: the setting that turns it on, and how to add and remove it.
+const DECORATIONS = [
+  { feature: "todo", add: addTodoLabels, remove: removeTodoLabels },
+  { feature: "alias", add: addAliasTails, remove: removeAliasTails },
+  { feature: "callout", add: addCalloutLabels, remove: removeCalloutLabels },
+];
+
+const isOn = (feature) => document.body.classList.contains(`roam-zen--${feature}`);
+
 function decorate() {
-  if (document.body.classList.contains("roam-zen--todo")) addTodoLabels();
-  if (document.body.classList.contains("roam-zen--alias")) addAliasTails();
+  for (const d of DECORATIONS) if (isOn(d.feature)) d.add();
 }
 
 // Decorations are added in the observer callback, before the browser paints,
 // so new blocks never show up without them.
 function watchPage() {
-  const todo = document.body.classList.contains("roam-zen--todo");
-  const alias = document.body.classList.contains("roam-zen--alias");
-  if (!todo) removeTodoLabels();
-  if (!alias) removeAliasTails();
-  if ((todo || alias) && !observer) {
+  for (const d of DECORATIONS) if (!isOn(d.feature)) d.remove();
+  const any = DECORATIONS.some((d) => isOn(d.feature));
+  if (any && !observer) {
     observer = new MutationObserver(decorate);
     observer.observe(document.body, { childList: true, subtree: true });
-  } else if (!todo && !alias && observer) {
+  } else if (!any && observer) {
     observer.disconnect();
     observer = null;
   }
@@ -304,8 +414,7 @@ function watchPage() {
 function unwatchPage() {
   observer?.disconnect();
   observer = null;
-  removeTodoLabels();
-  removeAliasTails();
+  for (const d of DECORATIONS) d.remove();
 }
 
 // --- Editor ---------------------------------------------------------------
@@ -351,6 +460,30 @@ export function parse(text) {
     blank(m.index, end);
   }
 
+  // A callout's "[[>]] [[!TYPE]] " and its title, the rest of the first line.
+  const callout = work.match(CALLOUT_PREFIX);
+  if (callout) {
+    const [all, icon, gap, open, type] = callout;
+    let k = icon.length + gap.length;
+    mark(0, k + open.length, "m");
+    k += open.length;
+    mark(k, k + type.length, "t");
+    mark(k + type.length, all.length, "m");
+    const lineEnd = work.indexOf("\n") === -1 ? work.length : work.indexOf("\n");
+    mark(all.length, lineEnd, "b");
+    mark(all.length, lineEnd, "k");
+    blank(0, all.length);
+  }
+
+  // A quote's "> ", also at the start of its later lines.
+  if (work.startsWith("> ")) {
+    for (const m of work.matchAll(/(?:^|\n)> /g)) {
+      const at = m.index + m[0].length - 2;
+      mark(at, at + 2, "m");
+      blank(at, at + 2);
+    }
+  }
+
   // An attribute, "Name::" at the start of the block: the name and first
   // colon bold, as Roam renders them, the second colon a marker.
   const attr = work.match(/^[^:\n`*^~]+?::/);
@@ -393,9 +526,26 @@ export function parse(text) {
 
   // Markers keep the block's own font, colour and decoration.
   return flags.map((set) => {
-    if (set.has("m")) for (const f of ["b", "i", "s", "c", "l"]) set.delete(f);
+    if (set.has("m")) for (const f of ["b", "i", "s", "c", "l", "k"]) set.delete(f);
     return [...set].sort().join("");
   });
+}
+
+// The computed style of a hidden element, so the mirror can borrow the
+// theme's colours for elements Roam only renders outside the editor.
+function probe(parent, tag, className) {
+  const el = document.createElement(tag);
+  el.className = className;
+  el.style.cssText = "position: absolute; visibility: hidden;";
+  parent.append(el);
+  const cs = getComputedStyle(el);
+  const look = {
+    bg: cs.backgroundColor,
+    bar: cs.borderLeftColor,
+    accent: cs.getPropertyValue("--callout-color").trim() || cs.borderLeftColor,
+  };
+  el.remove();
+  return look;
 }
 
 function render(mirror, text) {
@@ -418,6 +568,18 @@ function render(mirror, text) {
   // A trailing newline only takes up a line in a div when something follows it.
   frag.append("\u200b");
   mirror.replaceChildren(frag);
+  mirror.classList.toggle("rz-quote", text.startsWith("> ") && isOn("quote"));
+  const callout = isOn("callout") && text.match(CALLOUT_PREFIX);
+  mirror.classList.toggle("rz-callout", Boolean(callout));
+  // The type's colours, read from a hidden callout of that type, once per type.
+  const type = callout ? callout[4].slice(1).toLowerCase() : "";
+  if (type && mirror.dataset.calloutType !== type) {
+    mirror.dataset.calloutType = type;
+    const look = probe(mirror.parentNode, "div", `rm-callout rm-callout--${type}`);
+    mirror.style.setProperty("--roam-zen-callout-bg", look.bg);
+    mirror.style.setProperty("--roam-zen-callout-bar", look.bar);
+    mirror.style.setProperty("--roam-zen-callout-color", look.accent);
+  }
 }
 
 // Whether bold and italic keep every glyph's width in a font (true for most
@@ -473,6 +635,10 @@ function attach(ta) {
   });
   const link = document.querySelector(".roam-block .rm-page-ref--link");
   mirror.style.setProperty("--roam-zen-link-color", link ? getComputedStyle(link).color : cs.color);
+  // The theme's quote colours, read from a hidden quote next to the textarea.
+  const quote = probe(ta.parentNode, "blockquote", "rm-bq");
+  mirror.style.setProperty("--roam-zen-quote-bg", quote.bg);
+  mirror.style.setProperty("--roam-zen-quote-bar", quote.bar);
 
   ta.parentNode.insertBefore(mirror, ta);
   editing = { ta, mirror, text: null, caret: ta.style.caretColor, color: cs.color, frame: 0 };
