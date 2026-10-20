@@ -6,6 +6,7 @@
 // dimmed, in the rendered view, so both views hold the same characters.
 
 const STYLE_ID = "roam-zen-style";
+const GLOBAL_CLEANUP_KEY = "__roamZenCleanup";
 
 // Each feature is a body class; its CSS only applies while that class is set.
 const FEATURES = [
@@ -316,10 +317,14 @@ function findAliases(work) {
   return found;
 }
 
+// Reached through this, not bare window, so tools/test-logic.mjs can import the
+// module in Node.
+const roamAPI = () => globalThis.window?.roamAlphaAPI;
+
 function blockText(block) {
   try {
     const uid = block.id.slice(-9);
-    return window.roamAlphaAPI.data.pull("[:block/string]", [":block/uid", uid])?.[":block/string"] ?? null;
+    return roamAPI().data.pull("[:block/string]", [":block/uid", uid])?.[":block/string"] ?? null;
   } catch {
     return null;
   }
@@ -430,7 +435,7 @@ const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Returns one class key per character of a block's raw text, e.g. "b" for a
 // bold letter, "m" for a marker character, "" for plain text.
-export function parse(text) {
+function parse(text) {
   const flags = Array.from({ length: text.length }, () => new Set());
   const mark = (from, to, flag) => {
     for (let k = from; k < to; k++) flags[k].add(flag);
@@ -713,7 +718,14 @@ function apply() {
   watchPage();
 }
 
+let cleanup = null;
+
 function onload({ extensionAPI: api }) {
+  // Depot developer mode reloads this module without calling onunload, which
+  // leaves the previous instance's style, listeners and decorations behind.
+  if (cleanup) cleanup();
+  else window[GLOBAL_CLEANUP_KEY]?.();
+
   extensionAPI = api;
 
   const style = document.createElement("style");
@@ -756,17 +768,24 @@ function onload({ extensionAPI: api }) {
   document.addEventListener("focusin", onFocusIn);
   document.addEventListener("focusout", onFocusOut);
   if (document.activeElement) onFocusIn({ target: document.activeElement });
+
+  cleanup = () => {
+    document.removeEventListener("focusin", onFocusIn);
+    document.removeEventListener("focusout", onFocusOut);
+    detach();
+    unwatchPage();
+    style.remove();
+    for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
+    document.body.style.removeProperty("--roam-zen-marker-opacity");
+    extensionAPI = null;
+    if (window[GLOBAL_CLEANUP_KEY] === cleanup) delete window[GLOBAL_CLEANUP_KEY];
+    cleanup = null;
+  };
+  window[GLOBAL_CLEANUP_KEY] = cleanup;
 }
 
 function onunload() {
-  document.removeEventListener("focusin", onFocusIn);
-  document.removeEventListener("focusout", onFocusOut);
-  detach();
-  unwatchPage();
-  document.getElementById(STYLE_ID)?.remove();
-  for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
-  document.body.style.removeProperty("--roam-zen-marker-opacity");
-  extensionAPI = null;
+  cleanup?.();
 }
 
 export default { onload, onunload };
