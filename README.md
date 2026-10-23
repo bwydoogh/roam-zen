@@ -34,7 +34,7 @@ dimmed less, so you read "☐ TODO" first.
 
 While you edit a block, the raw text keeps its formatting: bold stays bold,
 highlights stay highlighted, links keep their colour, quotes and callouts keep
-their box, and the markup is dimmed.
+their box, and the markup is fully visible.
 
 ## Settings
 
@@ -47,9 +47,9 @@ Under **Settings → Roam Zen**:
 - **Quotes and callouts** — show the `>` of a quote and the `[[!TIP]]` of a
   callout
 - **Width-neutral bold** (off by default) — see below
-- **Marker opacity** — how strongly the markup is dimmed. **Hidden** hides it
-  but keeps its space, so text still doesn't move; while you edit, the markup
-  stays visible.
+- **Marker opacity** — how strongly the markup is dimmed in blocks you aren't
+  editing. **Hidden** hides it but keeps its space, so text still doesn't move.
+  While you edit, the markup is always fully visible.
 
 ### Monospace or not?
 

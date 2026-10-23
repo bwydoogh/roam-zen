@@ -88,7 +88,7 @@ must not move.
    `[[>]]` is, the title and body don't move. Try a foldable `[[!TIP]]-` and an
    unknown type.
 8. **Editor.** While editing, bold, highlight, strikethrough, code, links,
-   aliases, attribute names, quotes and callouts are styled with dimmed markers,
+   aliases, attribute names, quotes and callouts are styled with fully visible markers,
    and the caret stays on its character while typing, also after autocomplete
    (`[[`, `((`) and hotkeys (⌘B, ⌘I).
 9. **Width check.** In a proportional font, bold in the editor is drawn with an
@@ -97,9 +97,9 @@ must not move.
 10. **Block refs.** A `((ref))` to a block with bold, a TODO or a callout shows
     no extra markers inside the reference.
 11. **Settings.** Turn each of the four groups off and on without reloading; its
-    effect disappears and comes back, in the rendered view and in the editor.
-    With all four off, nothing changes on focus. Change **Marker opacity**; on **Hidden**,
-    rendered markers leave blank space and the editor still shows them.
+    effect disappears and comes back. Change **Marker opacity**: unfocused
+    blocks follow it, and on **Hidden** their markers leave blank space. The
+    editor shows every marker in full whatever the setting.
 12. **Themes.** Light and dark Roam themes: markers, quote and callout boxes are
     readable, in the rendered view and in the editor.
 13. **Right sidebar and linked references.** Repeat items 1, 3 and 8 there.

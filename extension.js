@@ -44,8 +44,8 @@ const FEATURES = [
 
 const OPACITY_SETTING = "markerOpacity";
 const OPACITY_DEFAULT = "0.35";
-// Hidden markers still take up their space in rendered blocks. The editor
-// keeps showing them at the default opacity, or you'd type blind.
+// The opacity only applies to blocks you aren't editing; the editor shows
+// every marker in full. Hidden markers still take up their space.
 const OPACITY_HIDDEN = "Hidden";
 
 // Rendered (unfocused) block text. Block references and embeds render another
@@ -81,7 +81,6 @@ const marker = (cls, sel, text) => `
 const CSS = `
   body {
     --roam-zen-marker-opacity: ${OPACITY_DEFAULT};
-    --roam-zen-editor-opacity: ${OPACITY_DEFAULT};
     /* Words that stand for something, like TODO, are dimmed half as much as
        pure syntax. */
     --roam-zen-word-opacity: min(1, calc(var(--roam-zen-marker-opacity) * 2));
@@ -258,12 +257,6 @@ const CSS = `
     border-style: solid;
     background: transparent;
   }
-  .roam-zen-mirror {
-    --roam-zen-marker-opacity: var(--roam-zen-editor-opacity);
-    --roam-zen-word-opacity: min(1, calc(var(--roam-zen-marker-opacity) * 2));
-  }
-  .roam-zen-mirror .rz-m { opacity: var(--roam-zen-marker-opacity); }
-  .roam-zen-mirror .rz-t { opacity: var(--roam-zen-word-opacity); }
   .roam-zen-mirror .rz-b { -webkit-text-stroke: 0.04em currentColor; }
   .roam-zen-mirror.rz-real-b .rz-b { font-weight: bold; -webkit-text-stroke: 0; }
   .roam-zen-mirror.rz-real-i .rz-i { font-style: italic; }
@@ -412,9 +405,6 @@ const DECORATIONS = [
 
 const isOn = (feature) => document.body.classList.contains(`roam-zen--${feature}`);
 
-// The features that show markup, in the rendered view and in the editor.
-const GROUPS = ["markers", "links", "todo", "quotes"];
-
 function decorate() {
   for (const d of DECORATIONS) if (isOn(d.feature)) d.add();
 }
@@ -452,14 +442,10 @@ const PAIRS = [
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Returns one class key per character of a block's raw text, e.g. "b" for a
-// bold letter, "m" for a marker character, "" for plain text. Only the groups
-// `on` accepts are styled; the others are still blanked out, so their source
-// isn't taken for other markup.
-function parse(text, on = () => true) {
+// bold letter, "m" for a marker character, "" for plain text.
+function parse(text) {
   const flags = Array.from({ length: text.length }, () => new Set());
-  let group = "";
   const mark = (from, to, flag) => {
-    if (!on(group)) return;
     for (let k = from; k < to; k++) flags[k].add(flag);
   };
 
@@ -472,7 +458,6 @@ function parse(text, on = () => true) {
   const blank = (from, to) => {
     work = work.slice(0, from) + "\0".repeat(to - from) + work.slice(to);
   };
-  group = "todo";
   for (const m of text.matchAll(/\{\{\[\[(?:TODO|DONE)\]\]\}\}/g)) {
     const end = m.index + m[0].length;
     mark(m.index, m.index + 4, "m");
@@ -480,7 +465,6 @@ function parse(text, on = () => true) {
     mark(end - 4, end, "m");
     blank(m.index, end);
   }
-  group = "markers";
   for (const m of work.matchAll(/`[^`\n]+`/g)) {
     const end = m.index + m[0].length;
     mark(m.index, end, "c");
@@ -490,7 +474,6 @@ function parse(text, on = () => true) {
   }
 
   // A callout's "[[>]] [[!TYPE]] " and its title, the rest of the first line.
-  group = "quotes";
   const callout = work.match(CALLOUT_PREFIX);
   if (callout) {
     const [all, icon, gap, open, type] = callout;
@@ -516,7 +499,6 @@ function parse(text, on = () => true) {
 
   // An attribute, "Name::" at the start of the block: the name and first
   // colon bold, as Roam renders them, the second colon a marker.
-  group = "links";
   const attr = work.match(/^[^:\n`*^~]+?::/);
   if (attr) {
     const end = attr[0].length;
@@ -532,7 +514,6 @@ function parse(text, on = () => true) {
     blank(a.start, a.end);
   }
 
-  group = "markers";
   for (const [token, flag] of PAIRS) {
     const t = escapeRegExp(token);
     for (const m of work.matchAll(new RegExp(`${t}([\\s\\S]+?)${t}`, "g"))) {
@@ -544,7 +525,6 @@ function parse(text, on = () => true) {
     }
   }
 
-  group = "links";
   const open = [];
   for (const m of work.matchAll(/\[\[|\]\]/g)) {
     if (m[0] === "[[") {
@@ -582,7 +562,7 @@ function probe(parent, tag, className) {
 }
 
 function render(mirror, text) {
-  const keys = parse(text, isOn);
+  const keys = parse(text);
   const frag = document.createDocumentFragment();
   for (let k = 0; k < text.length; ) {
     let j = k + 1;
@@ -654,7 +634,6 @@ let editing = null;
 
 function attach(ta) {
   detach();
-  if (!GROUPS.some(isOn)) return;
 
   const cs = getComputedStyle(ta);
   const mirror = document.createElement("div");
@@ -742,13 +721,7 @@ function apply() {
     document.body.classList.toggle(`roam-zen--${f.id}`, Boolean(read(f.id, f.default)));
   }
   const opacity = read(OPACITY_SETTING, OPACITY_DEFAULT);
-  const hidden = opacity === OPACITY_HIDDEN;
-  document.body.style.setProperty("--roam-zen-marker-opacity", hidden ? "0" : opacity);
-  document.body.style.setProperty("--roam-zen-editor-opacity", hidden ? OPACITY_DEFAULT : opacity);
-  // With no group on the editor is Roam's own; otherwise the mirror is
-  // rebuilt from the new settings on its next frame.
-  if (!GROUPS.some(isOn)) detach();
-  else if (editing) editing.text = null;
+  document.body.style.setProperty("--roam-zen-marker-opacity", opacity === OPACITY_HIDDEN ? "0" : opacity);
   watchPage();
 }
 
@@ -787,7 +760,7 @@ async function onload({ extensionAPI: api }) {
       {
         id: OPACITY_SETTING,
         name: "Marker opacity",
-        description: "How visible the markers are. Hidden keeps their space in rendered blocks; while you edit, they stay visible.",
+        description: "How visible the markers are in blocks you aren't editing. Hidden keeps their space, so text still doesn't move. While you edit, every marker is fully visible.",
         action: {
           type: "select",
           items: [OPACITY_HIDDEN, "0.1", "0.2", "0.35", "0.5", "0.75", "1"],
@@ -810,7 +783,6 @@ async function onload({ extensionAPI: api }) {
     style.remove();
     for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
     document.body.style.removeProperty("--roam-zen-marker-opacity");
-    document.body.style.removeProperty("--roam-zen-editor-opacity");
     extensionAPI = null;
     if (window[GLOBAL_CLEANUP_KEY] === cleanup) delete window[GLOBAL_CLEANUP_KEY];
     cleanup = null;
