@@ -10,21 +10,28 @@ const GLOBAL_CLEANUP_KEY = "__roamZenCleanup";
 
 // Each feature is a body class; its CSS only applies while that class is set.
 const FEATURES = [
-  { id: "bold", name: "Bold markers", description: "Show ** around bold text.", default: true },
-  { id: "italics", name: "Italic markers", description: "Show __ around italic text.", default: true },
-  { id: "highlight", name: "Highlight markers", description: "Show ^^ around highlighted text.", default: true },
-  { id: "strike", name: "Strikethrough markers", description: "Show ~~ around struck-through text.", default: true },
-  { id: "code", name: "Inline code markers", description: "Show backticks around inline code, in the block's own font and without padding.", default: true },
-  { id: "todo", name: "TODO and DONE", description: "Show the checkbox in place of {{ and the rest of {{[[TODO]]}} dimmed, so TODO and the text after it don't move. The brackets are dimmed more than the word.", default: true },
-  { id: "alias", name: "Alias destinations", description: "Show the whole source of an alias, [text](url), with everything but the text dimmed, so nothing moves when you edit the block.", default: true },
-  { id: "attr", name: "Attribute colons", description: "Show the second colon of an attribute, Name::, dimmed.", default: true },
-  { id: "quote", name: "Quotes", description: "Show the > of a quote dimmed, and draw the quote's box around the text instead of pushing the text in.", default: true },
-  { id: "callout", name: "Callouts", description: "Show the [[>]] [[!TYPE]] of a callout, with the icon in place of [[>]], and draw the callout's box around the text instead of pushing the text in.", default: true },
-  { id: "brackets", name: "Page reference brackets", description: "Always show [[ ]] around page references, even if brackets are hidden.", default: true },
   {
-    id: "editor",
-    name: "Style the editor",
-    description: "While you edit a block, show bold, highlight, strikethrough, code and links styled, with the markers dimmed. Styling that would change the width of the text is skipped, so the text stays put.",
+    id: "markers",
+    name: "Formatting markers",
+    description: "Show the ** __ ^^ ~~ and backticks around bold, italic, highlighted, struck-through text and inline code.",
+    default: true,
+  },
+  {
+    id: "links",
+    name: "Links and attributes",
+    description: "Always show [[ ]] around page references, even if brackets are hidden, the (url) of an alias, and the second colon of Name::.",
+    default: true,
+  },
+  {
+    id: "todo",
+    name: "TODO and DONE",
+    description: "Show the rest of {{[[TODO]]}} next to the checkbox, so the text after it doesn't move.",
+    default: true,
+  },
+  {
+    id: "quotes",
+    name: "Quotes and callouts",
+    description: "Show the > of a quote and the [[!TYPE]] of a callout, and draw their box around the text instead of pushing it in.",
     default: true,
   },
   {
@@ -37,6 +44,9 @@ const FEATURES = [
 
 const OPACITY_SETTING = "markerOpacity";
 const OPACITY_DEFAULT = "0.35";
+// Hidden markers still take up their space in rendered blocks. The editor
+// keeps showing them at the default opacity, or you'd type blind.
+const OPACITY_HIDDEN = "Hidden";
 
 // Rendered (unfocused) block text. Block references and embeds render another
 // block's text, whose markers are not in this block's source, so they are left alone.
@@ -71,37 +81,38 @@ const marker = (cls, sel, text) => `
 const CSS = `
   body {
     --roam-zen-marker-opacity: ${OPACITY_DEFAULT};
+    --roam-zen-editor-opacity: ${OPACITY_DEFAULT};
     /* Words that stand for something, like TODO, are dimmed half as much as
        pure syntax. */
     --roam-zen-word-opacity: min(1, calc(var(--roam-zen-marker-opacity) * 2));
   }
 
-  ${marker("bold", ".rm-bold", "**")}
-  ${marker("italics", ".rm-italics", "__")}
-  ${marker("highlight", ".rm-highlight", "^^")}
-  ${marker("strike", "del", "~~")}
-  ${marker("code", "code:not(pre code)", "`")}
+  ${marker("markers", ".rm-bold", "**")}
+  ${marker("markers", ".rm-italics", "__")}
+  ${marker("markers", ".rm-highlight", "^^")}
+  ${marker("markers", "del", "~~")}
+  ${marker("markers", "code:not(pre code)", "`")}
 
-  body.roam-zen--alias ${V} .rm-alias::before,
-  body.roam-zen--alias ${V} .rm-alias::after {
+  body.roam-zen--links ${V} .rm-alias::before,
+  body.roam-zen--links ${V} .rm-alias::after {
     opacity: var(--roam-zen-marker-opacity);
   }
-  body.roam-zen--alias ${V} .rm-alias::before { content: "["; }
-  body.roam-zen--alias ${V} .rm-alias::after { content: "]"; }
-  body.roam-zen--alias ${V} .rm-alias[${ALIAS_TAIL}]::after { content: attr(${ALIAS_TAIL}); }
-  body.roam-zen--alias ${V} .rm-block-ref .rm-alias::before,
-  body.roam-zen--alias ${V} .rm-block-ref .rm-alias::after {
+  body.roam-zen--links ${V} .rm-alias::before { content: "["; }
+  body.roam-zen--links ${V} .rm-alias::after { content: "]"; }
+  body.roam-zen--links ${V} .rm-alias[${ALIAS_TAIL}]::after { content: attr(${ALIAS_TAIL}); }
+  body.roam-zen--links ${V} .rm-block-ref .rm-alias::before,
+  body.roam-zen--links ${V} .rm-block-ref .rm-alias::after {
     content: none;
   }
 
   /* Roam renders "Name::" as "Name:"; the second colon comes back dimmed. */
-  body.roam-zen--attr ${V} .rm-attr-ref::after {
+  body.roam-zen--links ${V} .rm-attr-ref::after {
     content: ":";
     opacity: var(--roam-zen-marker-opacity);
     font-weight: normal;
     -webkit-text-stroke: 0;
   }
-  body.roam-zen--attr ${V} .rm-block-ref .rm-attr-ref::after {
+  body.roam-zen--links ${V} .rm-block-ref .rm-attr-ref::after {
     content: none;
   }
 
@@ -109,12 +120,12 @@ const CSS = `
      same size, so the box is drawn around the text instead of moving it. The
      text then starts where it does in the editor, after a dimmed "> ". On the
      left the box stays narrow, to keep clear of the bullet. */
-  body.roam-zen--quote ${V} blockquote.rm-bq {
+  body.roam-zen--quotes ${V} blockquote.rm-bq {
     margin: -4px -4px -4px -6px;
     padding: 4px 4px 4px 3px;
     border-left-width: 3px;
   }
-  body.roam-zen--quote ${V} blockquote.rm-bq::before {
+  body.roam-zen--quotes ${V} blockquote.rm-bq::before {
     content: "> ";
     opacity: var(--roam-zen-marker-opacity);
   }
@@ -124,38 +135,38 @@ const CSS = `
      gives it that width), Roam Zen's label with " [[!TYPE]] ", then the title.
      Everything here only applies once the label is in, so a callout
      Roam Zen can't read keeps Roam's own layout. */
-  body.roam-zen--callout ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) {
+  body.roam-zen--quotes ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) {
     margin: -4px -4px -4px -6px;
     padding: 4px 4px 4px 3px;
     border-left-width: 3px;
   }
-  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) {
+  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) {
     display: block;
   }
-  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper {
+  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper {
     display: inline-block;
     position: relative;
     line-height: inherit;
   }
-  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper::before {
+  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper::before {
     content: "[[>]]";
     visibility: hidden;
   }
-  body.roam-zen--callout ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper > .bp3-popover-target {
+  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper > .bp3-popover-target {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  body.roam-zen--callout ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) .rm-callout__body {
+  body.roam-zen--quotes ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) .rm-callout__body {
     margin-top: 0;
   }
   .${CALLOUT_LABEL} .rz-m { opacity: var(--roam-zen-marker-opacity); }
   .${CALLOUT_LABEL} .rz-t { opacity: var(--roam-zen-word-opacity); }
 
   /* The editor shows code in the block's font with no box around it. */
-  body.roam-zen--code ${V} code:not(pre code) {
+  body.roam-zen--markers ${V} code:not(pre code) {
     font: inherit;
     padding: 0;
     margin: 0;
@@ -163,7 +174,7 @@ const CSS = `
     border-radius: 0;
   }
 
-  body.roam-zen--brackets ${V} .rm-page-ref__brackets {
+  body.roam-zen--links ${V} .rm-page-ref__brackets {
     display: inline !important;
     visibility: visible !important;
     color: inherit;
@@ -246,6 +257,10 @@ const CSS = `
     border-color: transparent !important;
     border-style: solid;
     background: transparent;
+  }
+  .roam-zen-mirror {
+    --roam-zen-marker-opacity: var(--roam-zen-editor-opacity);
+    --roam-zen-word-opacity: min(1, calc(var(--roam-zen-marker-opacity) * 2));
   }
   .roam-zen-mirror .rz-m { opacity: var(--roam-zen-marker-opacity); }
   .roam-zen-mirror .rz-t { opacity: var(--roam-zen-word-opacity); }
@@ -391,8 +406,8 @@ let observer = null;
 // Each decoration: the setting that turns it on, and how to add and remove it.
 const DECORATIONS = [
   { feature: "todo", add: addTodoLabels, remove: removeTodoLabels },
-  { feature: "alias", add: addAliasTails, remove: removeAliasTails },
-  { feature: "callout", add: addCalloutLabels, remove: removeCalloutLabels },
+  { feature: "links", add: addAliasTails, remove: removeAliasTails },
+  { feature: "quotes", add: addCalloutLabels, remove: removeCalloutLabels },
 ];
 
 const isOn = (feature) => document.body.classList.contains(`roam-zen--${feature}`);
@@ -573,8 +588,8 @@ function render(mirror, text) {
   // A trailing newline only takes up a line in a div when something follows it.
   frag.append("\u200b");
   mirror.replaceChildren(frag);
-  mirror.classList.toggle("rz-quote", text.startsWith("> ") && isOn("quote"));
-  const callout = isOn("callout") && text.match(CALLOUT_PREFIX);
+  mirror.classList.toggle("rz-quote", text.startsWith("> ") && isOn("quotes"));
+  const callout = isOn("quotes") && text.match(CALLOUT_PREFIX);
   mirror.classList.toggle("rz-callout", Boolean(callout));
   // The type's colours, read from a hidden callout of that type, once per type.
   const type = callout ? callout[4].slice(1).toLowerCase() : "";
@@ -626,7 +641,6 @@ let editing = null;
 
 function attach(ta) {
   detach();
-  if (!document.body.classList.contains("roam-zen--editor")) return;
 
   const cs = getComputedStyle(ta);
   const mirror = document.createElement("div");
@@ -713,8 +727,10 @@ function apply() {
   for (const f of FEATURES) {
     document.body.classList.toggle(`roam-zen--${f.id}`, Boolean(read(f.id, f.default)));
   }
-  document.body.style.setProperty("--roam-zen-marker-opacity", read(OPACITY_SETTING, OPACITY_DEFAULT));
-  if (!document.body.classList.contains("roam-zen--editor")) detach();
+  const opacity = read(OPACITY_SETTING, OPACITY_DEFAULT);
+  const hidden = opacity === OPACITY_HIDDEN;
+  document.body.style.setProperty("--roam-zen-marker-opacity", hidden ? "0" : opacity);
+  document.body.style.setProperty("--roam-zen-editor-opacity", hidden ? OPACITY_DEFAULT : opacity);
   watchPage();
 }
 
@@ -748,10 +764,10 @@ function onload({ extensionAPI: api }) {
       {
         id: OPACITY_SETTING,
         name: "Marker opacity",
-        description: "How visible the markers are.",
+        description: "How visible the markers are. Hidden keeps their space in rendered blocks; while you edit, they stay visible.",
         action: {
           type: "select",
-          items: ["0.2", "0.35", "0.5", "0.75", "1"],
+          items: [OPACITY_HIDDEN, "0.1", "0.2", "0.35", "0.5", "0.75", "1"],
           onChange: () => setTimeout(apply),
         },
       },
@@ -777,6 +793,7 @@ function onload({ extensionAPI: api }) {
     style.remove();
     for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
     document.body.style.removeProperty("--roam-zen-marker-opacity");
+    document.body.style.removeProperty("--roam-zen-editor-opacity");
     extensionAPI = null;
     if (window[GLOBAL_CLEANUP_KEY] === cleanup) delete window[GLOBAL_CLEANUP_KEY];
     cleanup = null;

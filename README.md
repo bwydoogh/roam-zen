@@ -38,18 +38,18 @@ their box, and the markup is dimmed.
 
 ## Settings
 
-Everything can be switched on or off under **Settings → Roam Zen**:
+Under **Settings → Roam Zen**:
 
-- **Bold, italic, highlight, strikethrough and inline code markers**
-- **Alias destinations** — show the `(url)` of an alias
-- **Attribute colons** — show the second colon of `Name::`
-- **Quotes** — show the `>` of a quote
-- **Callouts** — show the `[[>]] [[!TIP]]` of a callout
+- **Formatting markers** — show `**` `__` `^^` `~~` and backticks
+- **Links and attributes** — always show `[[ ]]`, the `(url)` of an alias and
+  the second colon of `Name::`
 - **TODO and DONE** — show the rest of `{{[[TODO]]}}` next to the checkbox
-- **Page reference brackets** — always show `[[ ]]`
-- **Style the editor** — keep the formatting while you edit
+- **Quotes and callouts** — show the `>` of a quote and the `[[!TIP]]` of a
+  callout
 - **Width-neutral bold** (off by default) — see below
-- **Marker opacity** — how strongly the markup is dimmed
+- **Marker opacity** — how strongly the markup is dimmed. **Hidden** hides it
+  but keeps its space, so text still doesn't move; while you edit, the markup
+  stays visible.
 
 ### Monospace or not?
 

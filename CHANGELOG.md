@@ -16,5 +16,6 @@ All notable changes to this project are documented here.
   with a dimmed `>` or `[[!TYPE]]`.
 - Styled editor: while you edit a block, the raw text keeps its formatting with
   the markers dimmed, using only styling that keeps the text's width.
-- Settings to switch each part on or off, a width-neutral bold option for
-  proportional fonts, and a marker opacity.
+- Settings to switch formatting markers, links and attributes, TODO and DONE,
+  and quotes and callouts on or off, a width-neutral bold option for
+  proportional fonts, and a marker opacity, down to hidden.
