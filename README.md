@@ -29,16 +29,19 @@ takes up the same space. When you edit it, the formatting stays visible too.
 | `> quote` | the quote with a dimmed `>`, its box drawn around the text |
 | `[[>]] [[!TIP]] Title` | the callout's icon, a dimmed `[[!TIP]]` and the title, its box drawn around the text |
 
-Brackets and other markup are dimmed the most. Words like TODO and DONE are
-dimmed less, so you read "☐ TODO" first.
+Brackets and other markup are dimmed the most. TODO, DONE and a callout's
+type are dimmed less, so you read "☐ TODO" first. How strongly is up to you,
+see **Marker opacity** below.
 
 While you edit a block, the raw text keeps its formatting: bold stays bold,
-highlights stay highlighted, links keep their colour, quotes and callouts keep
-their box, and the markup is fully visible.
+highlights stay highlighted, links keep their colour, and the markup is fully
+visible. With **Quotes and callouts** on, quotes and callouts keep their box.
 
 ## Settings
 
-Under **Settings → Roam Zen**:
+Find them under **Settings → Roam Zen**. The first four are on by default; turn
+one off and Roam hides that markup again without focus, so it jumps when you
+click:
 
 - **Formatting markers** — show `**` `__` `^^` `~~` and backticks
 - **Links and attributes** — always show `[[ ]]`, the `(url)` of an alias and
