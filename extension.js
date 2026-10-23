@@ -84,6 +84,8 @@ const CSS = `
     /* Words that stand for something, like TODO, are dimmed half as much as
        pure syntax. */
     --roam-zen-word-opacity: min(1, calc(var(--roam-zen-marker-opacity) * 2));
+    /* TODO and DONE, which Hidden leaves dimmed. */
+    --roam-zen-todo-opacity: var(--roam-zen-word-opacity);
   }
 
   ${marker("markers", ".rm-bold", "**")}
@@ -224,7 +226,7 @@ const CSS = `
   }
   .roam-zen-todo .rz-hide { visibility: hidden; }
   .roam-zen-todo .rz-m { opacity: var(--roam-zen-marker-opacity); }
-  .roam-zen-todo .rz-word { opacity: var(--roam-zen-word-opacity); }
+  .roam-zen-todo .rz-word { opacity: var(--roam-zen-todo-opacity); }
   .roam-zen-todo .rz-word::before { content: "TODO"; }
   .rm-done .roam-zen-todo .rz-word::before { content: "DONE"; }
 
@@ -460,9 +462,7 @@ function parse(text) {
   };
   for (const m of text.matchAll(/\{\{\[\[(?:TODO|DONE)\]\]\}\}/g)) {
     const end = m.index + m[0].length;
-    mark(m.index, m.index + 4, "m");
-    mark(m.index + 4, end - 4, "t");
-    mark(end - 4, end, "m");
+    mark(m.index, end, "m");
     blank(m.index, end);
   }
   for (const m of work.matchAll(/`[^`\n]+`/g)) {
@@ -476,12 +476,8 @@ function parse(text) {
   // A callout's "[[>]] [[!TYPE]] " and its title, the rest of the first line.
   const callout = work.match(CALLOUT_PREFIX);
   if (callout) {
-    const [all, icon, gap, open, type] = callout;
-    let k = icon.length + gap.length;
-    mark(0, k + open.length, "m");
-    k += open.length;
-    mark(k, k + type.length, "t");
-    mark(k + type.length, all.length, "m");
+    const all = callout[0];
+    mark(0, all.length, "m");
     const lineEnd = work.indexOf("\n") === -1 ? work.length : work.indexOf("\n");
     mark(all.length, lineEnd, "b");
     mark(all.length, lineEnd, "k");
@@ -721,7 +717,12 @@ function apply() {
     document.body.classList.toggle(`roam-zen--${f.id}`, Boolean(read(f.id, f.default)));
   }
   const opacity = read(OPACITY_SETTING, OPACITY_DEFAULT);
-  document.body.style.setProperty("--roam-zen-marker-opacity", opacity === OPACITY_HIDDEN ? "0" : opacity);
+  const hidden = opacity === OPACITY_HIDDEN;
+  document.body.style.setProperty("--roam-zen-marker-opacity", hidden ? "0" : opacity);
+  // TODO and DONE say what a block is, so Hidden leaves them as dimmed as
+  // they are by default.
+  if (hidden) document.body.style.setProperty("--roam-zen-todo-opacity", String(Math.min(1, OPACITY_DEFAULT * 2)));
+  else document.body.style.removeProperty("--roam-zen-todo-opacity");
   watchPage();
 }
 
@@ -735,15 +736,42 @@ async function onload({ extensionAPI: api }) {
 
   extensionAPI = api;
 
-  // Settings start unset; seed them before the panel is created, which shows
-  // each switch as it was at that moment.
-  const seeds = FEATURES.map((f) => [f.id, f.default]).concat([[OPACITY_SETTING, OPACITY_DEFAULT]]);
-  await Promise.all(seeds.filter(([id]) => api.settings.get(id) === undefined).map(([id, value]) => api.settings.set(id, value)));
-
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = CSS;
   document.head.appendChild(style);
+
+  apply();
+  document.addEventListener("focusin", onFocusIn);
+  document.addEventListener("focusout", onFocusOut);
+  if (document.activeElement) onFocusIn({ target: document.activeElement });
+
+  const own = () => {
+    document.removeEventListener("focusin", onFocusIn);
+    document.removeEventListener("focusout", onFocusOut);
+    detach();
+    unwatchPage();
+    style.remove();
+    for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
+    document.body.style.removeProperty("--roam-zen-marker-opacity");
+    document.body.style.removeProperty("--roam-zen-todo-opacity");
+    extensionAPI = null;
+    if (window[GLOBAL_CLEANUP_KEY] === own) delete window[GLOBAL_CLEANUP_KEY];
+    cleanup = null;
+  };
+  cleanup = own;
+  window[GLOBAL_CLEANUP_KEY] = own;
+
+  // Settings start unset, and read() falls back to the defaults until they're
+  // stored. They are seeded before the panel is created, because the panel
+  // shows each switch as it was at that moment. A failed write only leaves
+  // that switch looking off.
+  const seeds = FEATURES.map((f) => [f.id, f.default]).concat([[OPACITY_SETTING, OPACITY_DEFAULT]]);
+  await Promise.allSettled(
+    seeds.filter(([id]) => api.settings.get(id) == null).map(async ([id, value]) => api.settings.set(id, value)),
+  );
+  // Unloaded or reloaded while the settings were being written.
+  if (cleanup !== own) return;
 
   api.settings.panel.create({
     tabTitle: "Roam Zen",
@@ -760,7 +788,7 @@ async function onload({ extensionAPI: api }) {
       {
         id: OPACITY_SETTING,
         name: "Marker opacity",
-        description: "How visible the markers are in blocks you aren't editing. Hidden keeps their space, so text still doesn't move. While you edit, every marker is fully visible.",
+        description: "How visible the markers are in blocks you aren't editing. Hidden keeps their space, so text still doesn't move, and leaves TODO and DONE dimmed. While you edit, every marker is fully visible.",
         action: {
           type: "select",
           items: [OPACITY_HIDDEN, "0.1", "0.2", "0.35", "0.5", "0.75", "1"],
@@ -769,25 +797,6 @@ async function onload({ extensionAPI: api }) {
       },
     ],
   });
-
-  apply();
-  document.addEventListener("focusin", onFocusIn);
-  document.addEventListener("focusout", onFocusOut);
-  if (document.activeElement) onFocusIn({ target: document.activeElement });
-
-  cleanup = () => {
-    document.removeEventListener("focusin", onFocusIn);
-    document.removeEventListener("focusout", onFocusOut);
-    detach();
-    unwatchPage();
-    style.remove();
-    for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
-    document.body.style.removeProperty("--roam-zen-marker-opacity");
-    extensionAPI = null;
-    if (window[GLOBAL_CLEANUP_KEY] === cleanup) delete window[GLOBAL_CLEANUP_KEY];
-    cleanup = null;
-  };
-  window[GLOBAL_CLEANUP_KEY] = cleanup;
 }
 
 function onunload() {

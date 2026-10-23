@@ -98,8 +98,9 @@ must not move.
     no extra markers inside the reference.
 11. **Settings.** Turn each of the four groups off and on without reloading; its
     effect disappears and comes back. Change **Marker opacity**: unfocused
-    blocks follow it, and on **Hidden** their markers leave blank space. The
-    editor shows every marker in full whatever the setting.
+    blocks follow it, and on **Hidden** their markers leave blank space while
+    TODO and DONE stay dimmed. The editor shows every marker in full whatever
+    the setting.
 12. **Themes.** Light and dark Roam themes: markers, quote and callout boxes are
     readable, in the rendered view and in the editor.
 13. **Right sidebar and linked references.** Repeat items 1, 3 and 8 there.

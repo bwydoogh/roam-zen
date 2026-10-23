@@ -73,8 +73,8 @@ check("tag", runs("#[[Two words]]"), [["", "#"], ["m", "[["], ["l", "Two words"]
 check("nested refs", runs("[[a [[b]]]]"), [["m", "[["], ["l", "a "], ["m", "[["], ["l", "b"], ["m", "]]]]"]]);
 
 // TODO/DONE: braces and brackets are markers, the word is dimmed less.
-check("todo", runs("{{[[TODO]]}} x"), [["m", "{{[["], ["t", "TODO"], ["m", "]]}}"], ["", " x"]]);
-check("done", runs("{{[[DONE]]}}"), [["m", "{{[["], ["t", "DONE"], ["m", "]]}}"]]);
+check("todo", runs("{{[[TODO]]}} x"), [["m", "{{[[TODO]]}}"], ["", " x"]]);
+check("done", runs("{{[[DONE]]}}"), [["m", "{{[[DONE]]}}"]]);
 
 // Aliases, whatever their destination.
 check("url alias", runs("[text](https://x.y/a_b)"), [["m", "["], ["l", "text"], ["m", "](https://x.y/a_b)"]]);
@@ -92,8 +92,8 @@ check("not a quote", runs(">no space"), [["", ">no space"]]);
 
 // Callouts: the prefix as markers, the type dimmed less, the title bold and in
 // the callout's colour, the body plain.
-check("callout", runs("[[>]] [[!NOTE]] Title\nBody"), [["m", "[[>]] [["], ["t", "!NOTE"], ["m", "]] "], ["bk", "Title"], ["", "\nBody"]]);
-check("foldable callout", runs("[[>]] [[!TIP]]- T"), [["m", "[[>]] [["], ["t", "!TIP"], ["m", "]]- "], ["bk", "T"]]);
+check("callout", runs("[[>]] [[!NOTE]] Title\nBody"), [["m", "[[>]] [[!NOTE]] "], ["bk", "Title"], ["", "\nBody"]]);
+check("foldable callout", runs("[[>]] [[!TIP]]- T"), [["m", "[[>]] [[!TIP]]- "], ["bk", "T"]]);
 check("callout prefix parts", "[[>]] [[!TIP]]- T".match(CALLOUT_PREFIX).slice(1), ["[[>]]", " ", "[[", "!TIP", "]]-", " "]);
 
 // findAliases feeds the rendered view, which pairs the nth alias in the

@@ -10,8 +10,8 @@ all that markup appears again. Words jump to another line, the block grows
 taller, and the spot you meant to click is suddenly somewhere else.
 
 Roam Zen makes both views show the same characters in the same place. When a
-block isn't focused, the markup stays visible but dimmed. When you edit it, the
-formatting stays visible too.
+block isn't focused, the markup is still there, dimmed or even hidden, so it
+takes up the same space. When you edit it, the formatting stays visible too.
 
 ## What you'll see
 
@@ -48,8 +48,9 @@ Under **Settings → Roam Zen**:
   callout
 - **Width-neutral bold** (off by default) — see below
 - **Marker opacity** — how strongly the markup is dimmed in blocks you aren't
-  editing. **Hidden** hides it but keeps its space, so text still doesn't move.
-  While you edit, the markup is always fully visible.
+  editing. **Hidden** hides it but keeps its space, so text still doesn't move;
+  TODO and DONE stay dimmed. While you edit, the markup is always fully
+  visible.
 
 ### Monospace or not?
 
