@@ -412,6 +412,9 @@ const DECORATIONS = [
 
 const isOn = (feature) => document.body.classList.contains(`roam-zen--${feature}`);
 
+// The features that show markup, in the rendered view and in the editor.
+const GROUPS = ["markers", "links", "todo", "quotes"];
+
 function decorate() {
   for (const d of DECORATIONS) if (isOn(d.feature)) d.add();
 }
@@ -449,10 +452,14 @@ const PAIRS = [
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Returns one class key per character of a block's raw text, e.g. "b" for a
-// bold letter, "m" for a marker character, "" for plain text.
-function parse(text) {
+// bold letter, "m" for a marker character, "" for plain text. Only the groups
+// `on` accepts are styled; the others are still blanked out, so their source
+// isn't taken for other markup.
+function parse(text, on = () => true) {
   const flags = Array.from({ length: text.length }, () => new Set());
+  let group = "";
   const mark = (from, to, flag) => {
+    if (!on(group)) return;
     for (let k = from; k < to; k++) flags[k].add(flag);
   };
 
@@ -465,6 +472,7 @@ function parse(text) {
   const blank = (from, to) => {
     work = work.slice(0, from) + "\0".repeat(to - from) + work.slice(to);
   };
+  group = "todo";
   for (const m of text.matchAll(/\{\{\[\[(?:TODO|DONE)\]\]\}\}/g)) {
     const end = m.index + m[0].length;
     mark(m.index, m.index + 4, "m");
@@ -472,6 +480,7 @@ function parse(text) {
     mark(end - 4, end, "m");
     blank(m.index, end);
   }
+  group = "markers";
   for (const m of work.matchAll(/`[^`\n]+`/g)) {
     const end = m.index + m[0].length;
     mark(m.index, end, "c");
@@ -481,6 +490,7 @@ function parse(text) {
   }
 
   // A callout's "[[>]] [[!TYPE]] " and its title, the rest of the first line.
+  group = "quotes";
   const callout = work.match(CALLOUT_PREFIX);
   if (callout) {
     const [all, icon, gap, open, type] = callout;
@@ -506,6 +516,7 @@ function parse(text) {
 
   // An attribute, "Name::" at the start of the block: the name and first
   // colon bold, as Roam renders them, the second colon a marker.
+  group = "links";
   const attr = work.match(/^[^:\n`*^~]+?::/);
   if (attr) {
     const end = attr[0].length;
@@ -521,6 +532,7 @@ function parse(text) {
     blank(a.start, a.end);
   }
 
+  group = "markers";
   for (const [token, flag] of PAIRS) {
     const t = escapeRegExp(token);
     for (const m of work.matchAll(new RegExp(`${t}([\\s\\S]+?)${t}`, "g"))) {
@@ -532,6 +544,7 @@ function parse(text) {
     }
   }
 
+  group = "links";
   const open = [];
   for (const m of work.matchAll(/\[\[|\]\]/g)) {
     if (m[0] === "[[") {
@@ -569,7 +582,7 @@ function probe(parent, tag, className) {
 }
 
 function render(mirror, text) {
-  const keys = parse(text);
+  const keys = parse(text, isOn);
   const frag = document.createDocumentFragment();
   for (let k = 0; k < text.length; ) {
     let j = k + 1;
@@ -641,6 +654,7 @@ let editing = null;
 
 function attach(ta) {
   detach();
+  if (!GROUPS.some(isOn)) return;
 
   const cs = getComputedStyle(ta);
   const mirror = document.createElement("div");
@@ -731,18 +745,27 @@ function apply() {
   const hidden = opacity === OPACITY_HIDDEN;
   document.body.style.setProperty("--roam-zen-marker-opacity", hidden ? "0" : opacity);
   document.body.style.setProperty("--roam-zen-editor-opacity", hidden ? OPACITY_DEFAULT : opacity);
+  // With no group on the editor is Roam's own; otherwise the mirror is
+  // rebuilt from the new settings on its next frame.
+  if (!GROUPS.some(isOn)) detach();
+  else if (editing) editing.text = null;
   watchPage();
 }
 
 let cleanup = null;
 
-function onload({ extensionAPI: api }) {
+async function onload({ extensionAPI: api }) {
   // Depot developer mode reloads this module without calling onunload, which
   // leaves the previous instance's style, listeners and decorations behind.
   if (cleanup) cleanup();
   else window[GLOBAL_CLEANUP_KEY]?.();
 
   extensionAPI = api;
+
+  // Settings start unset; seed them before the panel is created, which shows
+  // each switch as it was at that moment.
+  const seeds = FEATURES.map((f) => [f.id, f.default]).concat([[OPACITY_SETTING, OPACITY_DEFAULT]]);
+  await Promise.all(seeds.filter(([id]) => api.settings.get(id) === undefined).map(([id, value]) => api.settings.set(id, value)));
 
   const style = document.createElement("style");
   style.id = STYLE_ID;
@@ -773,12 +796,6 @@ function onload({ extensionAPI: api }) {
       },
     ],
   });
-
-  // Settings start unset; seed them so each switch shows its default.
-  for (const f of FEATURES) {
-    if (api.settings.get(f.id) === undefined) api.settings.set(f.id, f.default);
-  }
-  if (api.settings.get(OPACITY_SETTING) === undefined) api.settings.set(OPACITY_SETTING, OPACITY_DEFAULT);
 
   apply();
   document.addEventListener("focusin", onFocusIn);

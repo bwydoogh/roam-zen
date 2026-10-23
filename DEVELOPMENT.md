@@ -97,7 +97,8 @@ must not move.
 10. **Block refs.** A `((ref))` to a block with bold, a TODO or a callout shows
     no extra markers inside the reference.
 11. **Settings.** Turn each of the four groups off and on without reloading; its
-    effect disappears and comes back. Change **Marker opacity**; on **Hidden**,
+    effect disappears and comes back, in the rendered view and in the editor.
+    With all four off, nothing changes on focus. Change **Marker opacity**; on **Hidden**,
     rendered markers leave blank space and the editor still shows them.
 12. **Themes.** Light and dark Roam themes: markers, quote and callout boxes are
     readable, in the rendered view and in the editor.

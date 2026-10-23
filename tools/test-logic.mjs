@@ -40,8 +40,8 @@ function check(name, actual, expected) {
 
 // The parser's output as runs of [classes, text]: "" is plain text, "m" a
 // marker, "b" bold, "l" a link, and so on (see the rz-* classes).
-function runs(text) {
-  const keys = parse(text);
+function runs(text, on) {
+  const keys = parse(text, on);
   const out = [];
   for (let k = 0; k < text.length; ) {
     let j = k + 1;
@@ -95,6 +95,15 @@ check("not a quote", runs(">no space"), [["", ">no space"]]);
 check("callout", runs("[[>]] [[!NOTE]] Title\nBody"), [["m", "[[>]] [["], ["t", "!NOTE"], ["m", "]] "], ["bk", "Title"], ["", "\nBody"]]);
 check("foldable callout", runs("[[>]] [[!TIP]]- T"), [["m", "[[>]] [["], ["t", "!TIP"], ["m", "]]- "], ["bk", "T"]]);
 check("callout prefix parts", "[[>]] [[!TIP]]- T".match(CALLOUT_PREFIX).slice(1), ["[[>]]", " ", "[[", "!TIP", "]]-", " "]);
+
+// A group that is off leaves its markup plain, and its source still isn't
+// taken for another group's markup.
+const only = (...groups) => (group) => groups.includes(group);
+check("no groups", runs("**a** [[P]] {{[[TODO]]}}", only()), [["", "**a** [[P]] {{[[TODO]]}}"]]);
+check("markers off", runs("**a** [[P]]", only("links")), [["", "**a** "], ["m", "[["], ["l", "P"], ["m", "]]"]]);
+check("todo off, links on", runs("{{[[TODO]]}} [[P]]", only("links")), [["", "{{[[TODO]]}} "], ["m", "[["], ["l", "P"], ["m", "]]"]]);
+check("quotes off, links on", runs("[[>]] [[!TIP]] T", only("links")), [["", "[[>]] [[!TIP]] T"]]);
+check("code stays code with markers off", runs("`**a**`", only("links")), [["", "`**a**`"]]);
 
 // findAliases feeds the rendered view, which pairs the nth alias in the
 // source with the nth link on screen, so the count has to be right.
