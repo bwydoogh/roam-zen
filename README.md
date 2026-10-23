@@ -1,4 +1,4 @@
-# roam-zen
+# Roam Zen
 
 Keeps the text of a block from jumping when you click into it.
 
@@ -9,7 +9,7 @@ text without the asterisks, `[text](url)` as a link. Click into the block and
 all that markup appears again. Words jump to another line, the block grows
 taller, and the spot you meant to click is suddenly somewhere else.
 
-roam-zen makes both views show the same characters in the same place. When a
+Roam Zen makes both views show the same characters in the same place. When a
 block isn't focused, the markup stays visible but dimmed. When you edit it, the
 formatting stays visible too.
 
@@ -38,7 +38,7 @@ their box, and the markup is dimmed.
 
 ## Settings
 
-Everything can be switched on or off under **Settings → roam-zen**:
+Everything can be switched on or off under **Settings → Roam Zen**:
 
 - **Bold, italic, highlight, strikethrough and inline code markers**
 - **Alias destinations** — show the `(url)` of an alias
@@ -53,7 +53,7 @@ Everything can be switched on or off under **Settings → roam-zen**:
 
 ### Monospace or not?
 
-roam-zen works best with a monospace font. In other fonts, bold letters are
+Roam Zen works best with a monospace font. In other fonts, bold letters are
 wider than regular ones, so a bold word still shifts a few pixels when you
 click. Turn on **Width-neutral bold** to fix that. Bold then looks slightly
 different, but takes up the same space as regular text.

@@ -1,8 +1,8 @@
-// roam-zen: keep block text in place when a block gets focus.
+// Roam Zen: keep block text in place when a block gets focus.
 //
 // Roam shows rendered HTML for a block until you click it, then swaps in a
 // textarea with the raw markdown. The markers that appear (`**`, `^^`, `__`,
-// `~~`, backticks) push the text around. roam-zen shows those same markers,
+// `~~`, backticks) push the text around. Roam Zen shows those same markers,
 // dimmed, in the rendered view, so both views hold the same characters.
 
 const STYLE_ID = "roam-zen-style";
@@ -46,7 +46,7 @@ const V = ".roam-block";
 // attribute that CSS shows dimmed after the alias text.
 const ALIAS_TAIL = "data-roam-zen-tail";
 
-// The label roam-zen puts in a callout's first line.
+// The label Roam Zen puts in a callout's first line.
 const CALLOUT_LABEL = "roam-zen-callout";
 
 // "[[>]] [[!TYPE]] " at the start of a callout's source, in its parts. The
@@ -121,9 +121,9 @@ const CSS = `
 
   /* Callouts get the same box treatment as quotes. Their first line becomes
      the source again: the icon in place of "[[>]]" (an invisible "[[>]]"
-     gives it that width), roam-zen's label with " [[!TYPE]] ", then the title.
+     gives it that width), Roam Zen's label with " [[!TYPE]] ", then the title.
      Everything here only applies once the label is in, so a callout
-     roam-zen can't read keeps Roam's own layout. */
+     Roam Zen can't read keeps Roam's own layout. */
   body.roam-zen--callout ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) {
     margin: -4px -4px -4px -6px;
     padding: 4px 4px 4px 3px;
@@ -170,7 +170,7 @@ const CSS = `
     opacity: var(--roam-zen-marker-opacity);
   }
 
-  /* TODO/DONE: roam-zen adds a label after the checkbox that holds the rest
+  /* TODO/DONE: Roam Zen adds a label after the checkbox that holds the rest
      of the source, "{{[[TODO]]}}", so the box is exactly as wide as in the
      editor. Its "{{" and "}}" are invisible (the checkbox sits on top of the
      "{{"); the brackets are dimmed and the word less so. */
@@ -343,7 +343,7 @@ function addAliasTails() {
     // Code is not markup; blank it so an alias-like snippet in it is skipped.
     const work = text === null ? "" : text.replace(/`[^`\n]+`/g, (code) => "\0".repeat(code.length));
     const aliases = findAliases(work);
-    // Only when roam-zen finds the same aliases Roam rendered can each tail
+    // Only when Roam Zen finds the same aliases Roam rendered can each tail
     // go on the right link; otherwise show just the closing bracket.
     const matched = aliases.length === links.length;
     links.forEach((a, k) => {
@@ -734,7 +734,7 @@ function onload({ extensionAPI: api }) {
   document.head.appendChild(style);
 
   api.settings.panel.create({
-    tabTitle: "roam-zen",
+    tabTitle: "Roam Zen",
     settings: [
       ...FEATURES.map((f) => ({
         id: f.id,

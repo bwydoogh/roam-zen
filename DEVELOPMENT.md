@@ -1,6 +1,6 @@
 # Development
 
-roam-zen is a Roam Depot-ready extension. The public `README.md` is written for
+Roam Zen is a Roam Depot-ready extension. The public `README.md` is written for
 Roam Depot users; this file contains local development, test, and release notes.
 
 ## Files
@@ -60,7 +60,7 @@ The folder picker (Roam asks again after every app reload), or `npm run dev` and
 ### Testing without your own graph
 
 Roam's public help graph (`https://roamresearch.com/#/app/help`) accepts edits
-locally without saving them, and has blocks for every markup type roam-zen
+locally without saving them, and has blocks for every markup type Roam Zen
 handles: callouts on the `Callouts` page, quotes, aliases and TODOs elsewhere.
 Use `roamAlphaAPI.data.q` to find a block and `ui.mainWindow.openBlock` to open
 its parent.
@@ -121,7 +121,7 @@ Roam Depot metadata:
 
 ```json
 {
-  "name": "roam-zen",
+  "name": "Roam Zen",
   "short_description": "Keeps the text of a block from jumping when you click into it.",
   "author": "Benny Wydooghe",
   "tags": ["editing", "markdown", "formatting"],

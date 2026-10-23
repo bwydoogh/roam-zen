@@ -92,7 +92,7 @@ function listen(port, attemptsRemaining = 10) {
   });
 
   server.listen(port, host, () => {
-    console.log(`roam-zen dev server: http://localhost:${port}/extension.js`);
+    console.log(`Roam Zen dev server: http://localhost:${port}/extension.js`);
   });
 }
 

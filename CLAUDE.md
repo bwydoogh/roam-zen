@@ -41,7 +41,7 @@ focus. Three parts work towards that:
   heights and falls back to Roam's plain editor when the mirror needs more lines.
   Don't remove that check; it's what keeps a misaligned mirror from leaving styled
   text away from the caret.
-- **Never assign `textarea.value` and never write the block.** roam-zen only reads.
+- **Never assign `textarea.value` and never write the block.** Roam Zen only reads.
   Roam changes the textarea without `input` events (autocomplete, hotkeys), which is
   why the mirror polls in `requestAnimationFrame` rather than listening.
 - **Alias destinations are paired by position.** `addAliasTails` matches the nth
@@ -52,7 +52,7 @@ focus. Three parts work towards that:
   Roam's elements, and Roam may replace those elements at any time; the observer
   adds labels to new ones. Labels must stay idempotent (skip when present), and all
   layout changes that depend on a label are scoped with `:has(> label)` so a callout
-  roam-zen can't read keeps Roam's own layout.
+  Roam Zen can't read keeps Roam's own layout.
 - **Block refs show another block's text.** Markers and decorations are skipped
   inside `.rm-block-ref`, whose source isn't this block's.
 - **Reach the API through `roamAPI()`, not bare `window`.** `tools/test-logic.mjs`
