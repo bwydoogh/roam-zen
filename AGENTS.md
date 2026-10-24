@@ -60,7 +60,8 @@ focus. Three parts work towards that:
   and removes it within one event. A decoration that changes width needs a
   stand-in there, or clicks after it land off: static CSS for the TODO label,
   and per-click CSS from `portalCSS` (written on a capturing `mousedown`, before
-  Roam's handler) for alias tails and callout labels.
+  Roam's handler) for alias tails and callout labels. Link text has no `c-N`
+  ids there, so an alias is found by the characters around it.
 - **Block refs show another block's text.** Markers and decorations are skipped
   inside `.rm-block-ref`, whose source isn't this block's.
 - **Reach the API through `roamAPI()`, not bare `window`.** `tools/test-logic.mjs`

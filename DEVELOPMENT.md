@@ -91,10 +91,10 @@ must not move.
    aliases, attribute names, quotes and callouts are styled with fully visible markers,
    and the caret stays on its character while typing, also after autocomplete
    (`[[`, `((`) and hotkeys (⌘B, ⌘I).
-9. **Caret on click.** Click a word after the checkbox of a TODO, after bold
-   text, after a page ref, after an alias with a long URL, in a callout's title
-   and on a later line of a wrapped block: the caret lands on the character you
-   clicked.
+9. **Caret on click.** Click a word after the checkbox of a TODO and a DONE,
+   after bold text, after a page ref, after an alias with a long URL, in a
+   callout's title and on a later line of a wrapped block: the caret lands on the
+   character you clicked.
 10. **Width check.** In a proportional font, bold in the editor is drawn with an
     outline and italic stays upright. Turn on **Width-neutral bold** and confirm
     bold no longer shifts.

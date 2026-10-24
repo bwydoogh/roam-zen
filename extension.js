@@ -241,6 +241,9 @@ const CSS = `
     content: "{{[[TODO]]}}";
     visibility: hidden;
   }
+  body.roam-zen--todo [id="span-portal"] .rm-checkbox.rm-done::after {
+    content: "{{[[DONE]]}}";
+  }
   .roam-zen-todo .rz-hide { visibility: hidden; }
   .roam-zen-todo .rz-m { opacity: var(--roam-zen-marker-opacity); }
   .roam-zen-todo .rz-word { opacity: var(--roam-zen-todo-opacity); }
@@ -421,7 +424,8 @@ function removeCalloutLabels() {
 // block, too soon for the observer to decorate it. So on each mousedown, before
 // Roam's own handler, the clicked block's decorations are turned into CSS for
 // the copy. The copy holds the same elements as the block, and each character
-// of its text is a span with the character's place in the source as id.
+// of its plain text is a span with the character's place in the source as id
+// ("c-12"). Text inside a link, such as an alias's, has no ids.
 const PORTAL = '[id="span-portal"]';
 const PORTAL_STYLE_ID = "roam-zen-portal";
 
@@ -431,18 +435,20 @@ function portalCSS(block) {
   const rules = [];
   const text = blockText(block);
 
-  // Each alias tail goes on the alias holding that alias's text.
+  // Each alias tail goes on the alias that comes right after the character
+  // before the alias, or right before the character after it.
   const links = aliasLinks(block);
   const aliases = text === null ? [] : sourceAliases(text);
   if (isOn("links") && aliases.length === links.length) {
     links.forEach((a, k) => {
       const tail = a.getAttribute(ALIAS_TAIL);
       if (!tail || tail === "]") return;
-      const ids = [];
-      for (let i = aliases[k].start + 1; i < aliases[k].textEnd; i++) ids.push(`[id="c-${i}"]`);
-      if (!ids.length) return;
+      const before = `[id="c-${aliases[k].start - 1}"]`;
+      const after = `[id="c-${aliases[k].end}"]`;
+      const alias = ".rm-alias:not(.rm-block-ref *)";
+      const at = [`${before} + ${alias}`, `${before} + * ${alias}`, `${alias}:has(+ ${after})`, `:has(+ ${after}) ${alias}`];
       rules.push(`
-  body.roam-zen--links ${PORTAL} .rm-alias:not(.rm-block-ref *):has(${ids.join(", ")})::after {
+  ${at.map((s) => `body.roam-zen--links ${PORTAL} ${s}::after`).join(",\n  ")} {
     content: ${cssString(tail)};
   }`);
     });
