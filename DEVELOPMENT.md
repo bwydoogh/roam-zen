@@ -136,7 +136,8 @@ Roam Depot metadata:
   "tags": ["editing", "markdown", "formatting"],
   "source_url": "https://github.com/bwydoogh/roam-zen",
   "source_repo": "https://github.com/bwydoogh/roam-zen.git",
-  "source_commit": "FINAL_COMMIT_SHA"
+  "source_commit": "FINAL_COMMIT_SHA",
+  "stripe_account": "acct_1TzsHJQdGIF0T8Wk"
 }
 ```
 

@@ -2,15 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
-
-### Fixed
-
-- Clicking into a block puts the caret on the character you clicked. After a
-  TODO, markers, an alias or a callout's label it used to land several
-  characters further right.
-
-## [0.1.0] - 2026-10-20
+## [0.1.0] - 2026-10-24
 
 ### Added
 
@@ -22,6 +14,8 @@ All notable changes to this project are documented here.
 - Attributes show a dimmed second colon.
 - Quotes and callouts draw their box around the text instead of pushing it in,
   with a dimmed `>` or `[[!TYPE]]`.
+- Clicking into a block puts the caret on the character you clicked, also after
+  markers, a TODO, an alias or a callout's label.
 - Styled editor: while you edit a block, the raw text keeps its formatting with
   the markers fully visible, using only styling that keeps the text's width.
 - Settings to switch formatting markers, links and attributes, TODO and DONE,
