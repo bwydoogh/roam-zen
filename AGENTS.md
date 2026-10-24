@@ -53,6 +53,14 @@ focus. Three parts work towards that:
   adds labels to new ones. Labels must stay idempotent (skip when present), and all
   layout changes that depend on a label are scoped with `:has(> label)` so a callout
   Roam Zen can't read keeps Roam's own layout.
+- **Roam measures a copy of the block to place the caret.** On a click, Roam
+  renders the block again in a `#span-portal` on `body`, one span per source
+  character, and takes the character nearest the click. `V` matches that copy
+  too, so it gets the same CSS. Decorations never reach it, because Roam creates
+  and removes it within one event. A decoration that changes width needs a
+  stand-in there, or clicks after it land off: static CSS for the TODO label,
+  and per-click CSS from `portalCSS` (written on a capturing `mousedown`, before
+  Roam's handler) for alias tails and callout labels.
 - **Block refs show another block's text.** Markers and decorations are skipped
   inside `.rm-block-ref`, whose source isn't this block's.
 - **Reach the API through `roamAPI()`, not bare `window`.** `tools/test-logic.mjs`

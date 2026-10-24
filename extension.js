@@ -50,7 +50,13 @@ const OPACITY_HIDDEN = "Hidden";
 
 // Rendered (unfocused) block text. Block references and embeds render another
 // block's text, whose markers are not in this block's source, so they are left alone.
-const V = ".roam-block";
+//
+// On a click, Roam finds the caret by rendering the block again in a
+// #span-portal on body, one span per source character, and taking the
+// character nearest the click. That copy must be laid out like the block, or
+// the caret lands to the right of the click. (The attribute selector keeps the
+// specificity of a class.)
+const V = ':is(.roam-block, [id="span-portal"])';
 
 // Each rendered alias gets the rest of its source, "](destination)", in an
 // attribute that CSS shows dimmed after the alias text.
@@ -76,6 +82,37 @@ const marker = (cls, sel, text) => `
   body.roam-zen--${cls} ${V} .rm-block-ref ${sel}::before,
   body.roam-zen--${cls} ${V} .rm-block-ref ${sel}::after {
     content: none;
+  }`;
+
+// A callout's box and first line as Roam Zen lays them out, for the callouts
+// and headers the selectors pick out within scope.
+const calloutLayout = (scope, callout, header) => `
+  body.roam-zen--quotes ${scope} ${callout} {
+    margin: -4px -4px -4px -6px;
+    padding: 4px 4px 4px 3px;
+    border-left-width: 3px;
+  }
+  body.roam-zen--quotes ${scope} ${header} {
+    display: block;
+  }
+  body.roam-zen--quotes ${scope} ${header} > .bp3-popover-wrapper {
+    display: inline-block;
+    position: relative;
+    line-height: inherit;
+  }
+  body.roam-zen--quotes ${scope} ${header} > .bp3-popover-wrapper::before {
+    content: "[[>]]";
+    visibility: hidden;
+  }
+  body.roam-zen--quotes ${scope} ${header} > .bp3-popover-wrapper > .bp3-popover-target {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body.roam-zen--quotes ${scope} ${callout} .rm-callout__body {
+    margin-top: 0;
   }`;
 
 const CSS = `
@@ -136,33 +173,7 @@ const CSS = `
      gives it that width), Roam Zen's label with " [[!TYPE]] ", then the title.
      Everything here only applies once the label is in, so a callout
      Roam Zen can't read keeps Roam's own layout. */
-  body.roam-zen--quotes ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) {
-    margin: -4px -4px -4px -6px;
-    padding: 4px 4px 4px 3px;
-    border-left-width: 3px;
-  }
-  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) {
-    display: block;
-  }
-  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper {
-    display: inline-block;
-    position: relative;
-    line-height: inherit;
-  }
-  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper::before {
-    content: "[[>]]";
-    visibility: hidden;
-  }
-  body.roam-zen--quotes ${V} .rm-callout__header:has(> .${CALLOUT_LABEL}) > .bp3-popover-wrapper > .bp3-popover-target {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  body.roam-zen--quotes ${V} .rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL}) .rm-callout__body {
-    margin-top: 0;
-  }
+  ${calloutLayout(V, `.rm-callout:has(> .rm-callout__header > .${CALLOUT_LABEL})`, `.rm-callout__header:has(> .${CALLOUT_LABEL})`)}
   .${CALLOUT_LABEL} .rz-m { opacity: var(--roam-zen-marker-opacity); }
   .${CALLOUT_LABEL} .rz-t { opacity: var(--roam-zen-word-opacity); }
 
@@ -223,6 +234,12 @@ const CSS = `
     top: 2%;
     width: 42%;
     height: 83%;
+  }
+  /* Roam's copy of a clicked block (see V) never gets the label, so there an
+     invisible copy of the label's text gives the checkbox its width. */
+  body.roam-zen--todo [id="span-portal"] .rm-checkbox::after {
+    content: "{{[[TODO]]}}";
+    visibility: hidden;
   }
   .roam-zen-todo .rz-hide { visibility: hidden; }
   .roam-zen-todo .rz-m { opacity: var(--roam-zen-marker-opacity); }
@@ -340,6 +357,14 @@ function blockText(block) {
   }
 }
 
+// The aliases Roam rendered for a block's own source, not for a block ref in it.
+const aliasLinks = (block) =>
+  [...block.querySelectorAll(".rm-alias")].filter((a) => a.closest(V) === block && !a.closest(".rm-block-ref"));
+
+// The aliases in a block's source. Code is not markup; it is blanked so an
+// alias-like snippet in it is skipped.
+const sourceAliases = (text) => findAliases(text.replace(/`[^`\n]+`/g, (code) => "\0".repeat(code.length)));
+
 function addAliasTails() {
   const blocks = new Set();
   for (const a of document.querySelectorAll(`${V} .rm-alias:not([${ALIAS_TAIL}])`)) {
@@ -347,12 +372,8 @@ function addAliasTails() {
   }
   for (const block of blocks) {
     const text = blockText(block);
-    const links = [...block.querySelectorAll(".rm-alias")].filter(
-      (a) => a.closest(V) === block && !a.closest(".rm-block-ref"),
-    );
-    // Code is not markup; blank it so an alias-like snippet in it is skipped.
-    const work = text === null ? "" : text.replace(/`[^`\n]+`/g, (code) => "\0".repeat(code.length));
-    const aliases = findAliases(work);
+    const links = aliasLinks(block);
+    const aliases = text === null ? [] : sourceAliases(text);
     // Only when Roam Zen finds the same aliases Roam rendered can each tail
     // go on the right link; otherwise show just the closing bracket.
     const matched = aliases.length === links.length;
@@ -392,6 +413,63 @@ function addCalloutLabels() {
 
 function removeCalloutLabels() {
   for (const label of document.querySelectorAll(`.${CALLOUT_LABEL}`)) label.remove();
+}
+
+// --- Roam's copy of a clicked block ----------------------------------------
+
+// Roam lays out its copy of a block (see V) in the mousedown that focuses the
+// block, too soon for the observer to decorate it. So on each mousedown, before
+// Roam's own handler, the clicked block's decorations are turned into CSS for
+// the copy. The copy holds the same elements as the block, and each character
+// of its text is a span with the character's place in the source as id.
+const PORTAL = '[id="span-portal"]';
+const PORTAL_STYLE_ID = "roam-zen-portal";
+
+const cssString = (text) => `"${text.replace(/["\\]/g, "\\$&").replace(/\n/g, "\\a ")}"`;
+
+function portalCSS(block) {
+  const rules = [];
+  const text = blockText(block);
+
+  // Each alias tail goes on the alias holding that alias's text.
+  const links = aliasLinks(block);
+  const aliases = text === null ? [] : sourceAliases(text);
+  if (isOn("links") && aliases.length === links.length) {
+    links.forEach((a, k) => {
+      const tail = a.getAttribute(ALIAS_TAIL);
+      if (!tail || tail === "]") return;
+      const ids = [];
+      for (let i = aliases[k].start + 1; i < aliases[k].textEnd; i++) ids.push(`[id="c-${i}"]`);
+      if (!ids.length) return;
+      rules.push(`
+  body.roam-zen--links ${PORTAL} .rm-alias:not(.rm-block-ref *):has(${ids.join(", ")})::after {
+    content: ${cssString(tail)};
+  }`);
+    });
+  }
+
+  // The callout layout, with a blank as wide as the label before the title.
+  const label = block.querySelector(`.rm-callout__header > .${CALLOUT_LABEL}`);
+  if (label && !label.closest(".rm-block-ref")) {
+    const callout = ".rm-callout:not(.rm-block-ref *)";
+    rules.push(
+      calloutLayout(PORTAL, callout, `${callout} > .rm-callout__header`),
+      `
+  body.roam-zen--quotes ${PORTAL} ${callout} > .rm-callout__header > .rm-callout__title::before {
+    content: "";
+    display: inline-block;
+    width: ${label.getBoundingClientRect().width}px;
+  }`,
+    );
+  }
+  return rules.join("\n");
+}
+
+let portalStyle = null;
+
+function onMouseDown(event) {
+  const block = event.target instanceof Element ? event.target.closest(".roam-block") : null;
+  portalStyle.textContent = block ? portalCSS(block) : "";
 }
 
 // --- Watching the page ------------------------------------------------------
@@ -740,18 +818,27 @@ async function onload({ extensionAPI: api }) {
   style.id = STYLE_ID;
   style.textContent = CSS;
   document.head.appendChild(style);
+  portalStyle = document.createElement("style");
+  portalStyle.id = PORTAL_STYLE_ID;
+  document.head.appendChild(portalStyle);
 
   apply();
   document.addEventListener("focusin", onFocusIn);
   document.addEventListener("focusout", onFocusOut);
+  // Capturing on document runs before Roam's handler, which React calls from
+  // its root element.
+  document.addEventListener("mousedown", onMouseDown, true);
   if (document.activeElement) onFocusIn({ target: document.activeElement });
 
   const own = () => {
     document.removeEventListener("focusin", onFocusIn);
     document.removeEventListener("focusout", onFocusOut);
+    document.removeEventListener("mousedown", onMouseDown, true);
     detach();
     unwatchPage();
     style.remove();
+    portalStyle?.remove();
+    portalStyle = null;
     for (const f of FEATURES) document.body.classList.remove(`roam-zen--${f.id}`);
     document.body.style.removeProperty("--roam-zen-marker-opacity");
     document.body.style.removeProperty("--roam-zen-todo-opacity");

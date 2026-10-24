@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- Clicking into a block puts the caret on the character you clicked. After a
+  TODO, markers, an alias or a callout's label it used to land several
+  characters further right.
+
 ## [0.1.0] - 2026-10-20
 
 ### Added

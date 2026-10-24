@@ -91,22 +91,28 @@ must not move.
    aliases, attribute names, quotes and callouts are styled with fully visible markers,
    and the caret stays on its character while typing, also after autocomplete
    (`[[`, `((`) and hotkeys (⌘B, ⌘I).
-9. **Width check.** In a proportional font, bold in the editor is drawn with an
-   outline and italic stays upright. Turn on **Width-neutral bold** and confirm
-   bold no longer shifts.
-10. **Block refs.** A `((ref))` to a block with bold, a TODO or a callout shows
+9. **Caret on click.** Click a word after the checkbox of a TODO, after bold
+   text, after a page ref, after an alias with a long URL, in a callout's title
+   and on a later line of a wrapped block: the caret lands on the character you
+   clicked.
+10. **Width check.** In a proportional font, bold in the editor is drawn with an
+    outline and italic stays upright. Turn on **Width-neutral bold** and confirm
+    bold no longer shifts.
+11. **Block refs.** A `((ref))` to a block with bold, a TODO or a callout shows
     no extra markers inside the reference.
-11. **Settings.** Turn each of the four groups off and on without reloading; its
+12. **Settings.** Turn each of the four groups off and on without reloading; its
     effect disappears and comes back. Change **Marker opacity**: unfocused
     blocks follow it, and on **Hidden** their markers leave blank space while
     TODO and DONE stay dimmed. The editor shows every marker in full whatever
     the setting.
-12. **Themes.** Light and dark Roam themes: markers, quote and callout boxes are
+13. **Themes.** Light and dark Roam themes: markers, quote and callout boxes are
     readable, in the rendered view and in the editor.
-13. **Right sidebar and linked references.** Repeat items 1, 3 and 8 there.
-14. **Reload.** Reload the extension in developer mode (`ctrl-d ctrl-r`) twice:
-    there is one `#roam-zen-style`, and no doubled TODO or callout labels.
-15. **Teardown.** Disable the extension: no `roam-zen` classes on `body`, no
+14. **Right sidebar and linked references.** Repeat items 1, 3 and 8 there.
+15. **Reload.** Reload the extension in developer mode (`ctrl-d ctrl-r`) twice:
+    there is one `#roam-zen-style` and one `#roam-zen-portal`, and no doubled
+    TODO or callout labels.
+16. **Teardown.** Disable the extension: no `#roam-zen-style` or
+    `#roam-zen-portal`, no `roam-zen` classes on `body`, no
     `.roam-zen-mirror`, `.roam-zen-todo` or `.roam-zen-callout` elements, no
     `data-roam-zen-tail` attributes, and Roam's own rendering is back.
 
