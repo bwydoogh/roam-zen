@@ -11,7 +11,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const exposed = ["parse", "findAliases", "CALLOUT_PREFIX"];
+const exposed = ["parse", "findAliases", "toRuns", "CALLOUT_PREFIX"];
 
 function buildHarness() {
   const source = readFileSync(join(repoRoot, "extension.js"), "utf8");
@@ -24,7 +24,7 @@ function buildHarness() {
 }
 
 const { dir, file } = buildHarness();
-const { parse, findAliases, CALLOUT_PREFIX } = await import(pathToFileURL(file).href);
+const { parse, findAliases, toRuns, CALLOUT_PREFIX } = await import(pathToFileURL(file).href);
 rmSync(dir, { recursive: true, force: true });
 
 let failures = 0;
@@ -37,6 +37,16 @@ function check(name, actual, expected) {
   failures += 1;
   console.error(`FAIL ${name}\n  expected ${JSON.stringify(expected)}\n  actual   ${JSON.stringify(actual)}`);
 }
+
+check("runs split on class changes and end in a zero-width space", toRuns("a **b** c"), [
+  { key: "", text: "a " },
+  { key: "m", text: "**" },
+  { key: "b", text: "b" },
+  { key: "m", text: "**" },
+  { key: "", text: " c" },
+  { key: "", text: "​" },
+]);
+check("empty text is only the zero-width space", toRuns(""), [{ key: "", text: "​" }]);
 
 // The parser's output as runs of [classes, text]: "" is plain text, "m" a
 // marker, "b" bold, "l" a link, and so on (see the rz-* classes).

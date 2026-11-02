@@ -495,13 +495,18 @@ function decorate() {
   for (const d of DECORATIONS) if (isOn(d.feature)) d.add();
 }
 
+// The mirror changes as you type and holds nothing to decorate.
+function onMutations(records) {
+  if (!records.every((r) => r.target.closest?.(".roam-zen-mirror"))) decorate();
+}
+
 // Decorations are added in the observer callback, before the browser paints,
 // so new blocks never show up without them.
 function watchPage() {
   for (const d of DECORATIONS) if (!isOn(d.feature)) d.remove();
   const any = DECORATIONS.some((d) => isOn(d.feature));
   if (any && !observer) {
-    observer = new MutationObserver(decorate);
+    observer = new MutationObserver(onMutations);
     observer.observe(document.body, { childList: true, subtree: true });
   } else if (!any && observer) {
     observer.disconnect();
@@ -641,26 +646,58 @@ function probe(parent, tag, className) {
   return look;
 }
 
-function render(mirror, text) {
+// A block's text as runs of characters with the same class key; the mirror holds
+// one node per run.
+function toRuns(text) {
   const keys = parse(text);
-  const frag = document.createDocumentFragment();
+  const runs = [];
   for (let k = 0; k < text.length; ) {
     let j = k + 1;
     while (j < text.length && keys[j] === keys[k]) j++;
-    const piece = text.slice(k, j);
-    if (keys[k]) {
-      const span = document.createElement("span");
-      span.className = [...keys[k]].map((f) => `rz-${f}`).join(" ");
-      span.textContent = piece;
-      frag.append(span);
-    } else {
-      frag.append(piece);
-    }
+    runs.push({ key: keys[k], text: text.slice(k, j) });
     k = j;
   }
   // A trailing newline only takes up a line in a div when something follows it.
-  frag.append("\u200b");
-  mirror.replaceChildren(frag);
+  runs.push({ key: "", text: "\u200b" });
+  return runs;
+}
+
+function runNode({ key, text }) {
+  if (!key) return document.createTextNode(text);
+  const span = document.createElement("span");
+  span.className = [...key].map((f) => `rz-${f}`).join(" ");
+  span.textContent = text;
+  return span;
+}
+
+// Touches only the runs that changed. Every node added to the mirror reaches
+// every MutationObserver on the page, other extensions' too, on each keystroke;
+// a run that only changes its text adds none.
+function patchRuns(mirror, from, to) {
+  const same = (a, b) => a.key === b.key && a.text === b.text;
+  let start = 0;
+  while (start < from.length && start < to.length && same(from[start], to[start])) start++;
+  let end = 0;
+  const room = Math.min(from.length, to.length) - start;
+  while (end < room && same(from[from.length - 1 - end], to[to.length - 1 - end])) end++;
+
+  const nodes = [...mirror.childNodes];
+  const fromEnd = from.length - end;
+  const toEnd = to.length - end;
+  const after = nodes[fromEnd] ?? null;
+  for (let k = start; k < toEnd; k++) {
+    if (k >= fromEnd) mirror.insertBefore(runNode(to[k]), after);
+    else if (from[k].key === to[k].key) (nodes[k].firstChild ?? nodes[k]).data = to[k].text;
+    else nodes[k].replaceWith(runNode(to[k]));
+  }
+  for (let k = toEnd; k < fromEnd; k++) nodes[k].remove();
+}
+
+function render(e) {
+  const { mirror, text } = e;
+  const runs = toRuns(text);
+  patchRuns(mirror, e.runs, runs);
+  e.runs = runs;
   mirror.classList.toggle("rz-quote", text.startsWith("> ") && isOn("quotes"));
   const callout = isOn("quotes") && text.match(CALLOUT_PREFIX);
   mirror.classList.toggle("rz-callout", Boolean(callout));
@@ -733,7 +770,7 @@ function attach(ta) {
   mirror.style.setProperty("--roam-zen-quote-bar", quote.bar);
 
   ta.parentNode.insertBefore(mirror, ta);
-  editing = { ta, mirror, text: null, caret: ta.style.caretColor, color: cs.color, frame: 0 };
+  editing = { ta, mirror, text: null, runs: [], caret: ta.style.caretColor, color: cs.color, frame: 0 };
   tick();
 }
 
@@ -757,7 +794,7 @@ function tick() {
   const { ta, mirror } = e;
   if (ta.value !== e.text) {
     e.text = ta.value;
-    render(mirror, e.text);
+    render(e);
   }
 
   mirror.style.left = `${ta.offsetLeft}px`;

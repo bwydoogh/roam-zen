@@ -27,7 +27,7 @@ focus. Three parts work towards that:
   `data-roam-zen-tail` attribute) and a callout's ` [[!TYPE]] ` label. One
   `MutationObserver` adds them in its callback, before the browser paints.
 - **Editor: the mirror.** The focused textarea's text turns transparent and a styled
-  copy (`.roam-zen-mirror`) sits right behind it, rebuilt from `parse()` and kept in
+  copy (`.roam-zen-mirror`) sits right behind it, patched from `parse()` and kept in
   step frame by frame.
 
 ### Things that are easy to get wrong

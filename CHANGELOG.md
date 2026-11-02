@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- While you type, the styled editor only updates the part of the text that
+  changed, so other extensions that watch the page have less to process.
+
 ## [0.1.0] - 2026-10-24
 
 ### Added
