@@ -35,16 +35,12 @@ const FEATURES = [
     default: true,
   },
   {
-    // Formerly "flatBold" (off by default). A new id, so installs that stored
-    // the old default pick up the new one.
-    id: "neutralBold",
+    id: "flatBold",
     name: "Width-neutral bold",
-    description: "Draw bold with a stroke instead of a bold font when the bold font is wider, so bold text is as wide as in the editor. Fonts whose bold has the same width, like most monospace fonts, keep their real bold.",
-    default: true,
+    description: "Draw bold with a stroke instead of a bold font, so bold text is as wide as in the editor. Useful with proportional fonts; not needed with a monospace font.",
+    default: false,
   },
 ];
-
-const NEUTRAL_BOLD = "neutralBold";
 
 const OPACITY_SETTING = "markerOpacity";
 const OPACITY_DEFAULT = "0.35";
@@ -68,13 +64,6 @@ const ALIAS_TAIL = "data-roam-zen-tail";
 
 // The label Roam Zen puts in a callout's first line.
 const CALLOUT_LABEL = "roam-zen-callout";
-
-// On a TODO label for the older {{TODO}} form, which has no brackets.
-const TODO_PLAIN = "roam-zen-todo--plain";
-
-// On each quote Roam Zen has looked at; "lines" when its later lines need
-// room for the "> " Roam strips from them.
-const QUOTE_MARK = "data-roam-zen-quote";
 
 // "[[>]] [[!TYPE]] " at the start of a callout's source, in its parts. The
 // type may end in + or -, which makes the callout foldable.
@@ -126,22 +115,6 @@ const calloutLayout = (scope, callout, header) => `
     margin-top: 0;
   }`;
 
-// A quote over several lines: Roam strips the "> " from every line after the
-// first, inside one text node Roam Zen may not touch. Each line starts an
-// indent (the width of "> ") further right instead, blank; the first line's
-// dimmed "> " moves back into its indent. Inline blocks inside the quote would
-// inherit the indent, so it's reset on its children.
-const quoteIndent = (scope, quote, indent) => `
-  body.roam-zen--quotes ${scope} ${quote} {
-    text-indent: ${indent} each-line;
-  }
-  body.roam-zen--quotes ${scope} ${quote}::before {
-    margin-left: calc(-1 * ${indent});
-  }
-  body.roam-zen--quotes ${scope} ${quote} > * {
-    text-indent: 0;
-  }`;
-
 const CSS = `
   body {
     --roam-zen-marker-opacity: ${OPACITY_DEFAULT};
@@ -181,24 +154,6 @@ const CSS = `
     content: none;
   }
 
-  /* Roam renders #[[two words]] as "#two words", without brackets. A tag
-     name with a space can only come from the bracket form, so its brackets
-     come back. It reads "[[#two words]]": the source's width, with "#" and
-     "[[" swapped. A one-word #[[tag]] can't be told from #tag. The brackets
-     keep the tag's weight, which is the block's, also in a heading. */
-  body.roam-zen--links ${V} .rm-page-ref--tag[data-tag*=" "]::before,
-  body.roam-zen--links ${V} .rm-page-ref--tag[data-tag*=" "]::after {
-    opacity: var(--roam-zen-marker-opacity);
-    text-decoration: none;
-    -webkit-text-stroke: 0;
-  }
-  body.roam-zen--links ${V} .rm-page-ref--tag[data-tag*=" "]::before { content: "[["; }
-  body.roam-zen--links ${V} .rm-page-ref--tag[data-tag*=" "]::after { content: "]]"; }
-  body.roam-zen--links ${V} .rm-block-ref .rm-page-ref--tag[data-tag*=" "]::before,
-  body.roam-zen--links ${V} .rm-block-ref .rm-page-ref--tag[data-tag*=" "]::after {
-    content: none;
-  }
-
   /* Quotes: Roam's padding and margins are traded for negative margins of the
      same size, so the box is drawn around the text instead of moving it. The
      text then starts where it does in the editor, after a dimmed "> ". On the
@@ -212,7 +167,6 @@ const CSS = `
     content: "> ";
     opacity: var(--roam-zen-marker-opacity);
   }
-  ${quoteIndent(V, `blockquote.rm-bq[${QUOTE_MARK}="lines"]`, "var(--roam-zen-quote-indent)")}
 
   /* Callouts get the same box treatment as quotes. Their first line becomes
      the source again: the icon in place of "[[>]]" (an invisible "[[>]]"
@@ -295,13 +249,10 @@ const CSS = `
   .roam-zen-todo .rz-word { opacity: var(--roam-zen-todo-opacity); }
   .roam-zen-todo .rz-word::before { content: "TODO"; }
   .rm-done .roam-zen-todo .rz-word::before { content: "DONE"; }
-  /* The older {{TODO}} form has no brackets. */
-  .${TODO_PLAIN} .rz-m { display: none; }
 
-  /* Only set while the block font's bold is wider than its regular. */
-  body.roam-zen--neutralBold ${V} .rm-bold,
-  body.roam-zen--neutralBold ${V} .rm-attr-ref,
-  body.roam-zen--neutralBold ${V} .rm-callout__title {
+  body.roam-zen--flatBold ${V} .rm-bold,
+  body.roam-zen--flatBold ${V} .rm-attr-ref,
+  body.roam-zen--flatBold ${V} .rm-callout__title {
     font-weight: inherit;
     -webkit-text-stroke: 0.04em currentColor;
   }
@@ -358,20 +309,7 @@ const CSS = `
 
 const TODO_LABEL = "roam-zen-todo";
 
-// Code is not markup; it is blanked so a snippet in it is skipped.
-const blankCode = (text) => text.replace(/`[^`\n]+`/g, (code) => "\0".repeat(code.length));
-
-// Each TODO or DONE in a block's source, in order: true for the older
-// {{TODO}} form, which Roam renders just like {{[[TODO]]}}.
-const todoForms = (text) =>
-  [...blankCode(text).matchAll(/\{\{(?:\[\[(?:TODO|DONE)\]\]|(TODO|DONE))\}\}/g)].map((m) => m[1] !== undefined);
-
-// The checkboxes Roam rendered for a block's own source, not for a block ref in it.
-const todoBoxes = (block) =>
-  [...block.querySelectorAll(".rm-checkbox")].filter((b) => b.closest(V) === block && !b.closest(".rm-block-ref"));
-
 function addTodoLabels() {
-  const blocks = new Set();
   for (const box of document.querySelectorAll(`${V} .rm-checkbox`)) {
     if (box.querySelector(`:scope > .${TODO_LABEL}`)) continue;
     const label = document.createElement("span");
@@ -381,16 +319,6 @@ function addTodoLabels() {
     // reuses the element.
     label.innerHTML = '<span class="rz-hide">{{</span><span class="rz-m">[[</span><span class="rz-word"></span><span class="rz-m">]]</span><span class="rz-hide">}}</span>';
     box.append(label);
-    if (!box.closest(".rm-block-ref")) blocks.add(box.closest(V));
-  }
-  // Only when Roam Zen finds as many TODOs in the source as Roam rendered can
-  // each form go on the right checkbox; otherwise all keep their brackets.
-  for (const block of blocks) {
-    const text = blockText(block);
-    const boxes = todoBoxes(block);
-    const forms = text === null ? [] : todoForms(text);
-    if (forms.length !== boxes.length) continue;
-    boxes.forEach((box, k) => box.querySelector(`:scope > .${TODO_LABEL}`)?.classList.toggle(TODO_PLAIN, forms[k]));
   }
 }
 
@@ -436,8 +364,9 @@ function blockText(block) {
 const aliasLinks = (block) =>
   [...block.querySelectorAll(".rm-alias")].filter((a) => a.closest(V) === block && !a.closest(".rm-block-ref"));
 
-// The aliases in a block's source, skipping alias-like snippets in code.
-const sourceAliases = (text) => findAliases(blankCode(text));
+// The aliases in a block's source. Code is not markup; it is blanked so an
+// alias-like snippet in it is skipped.
+const sourceAliases = (text) => findAliases(text.replace(/`[^`\n]+`/g, (code) => "\0".repeat(code.length)));
 
 function addAliasTails() {
   const blocks = new Set();
@@ -487,46 +416,6 @@ function addCalloutLabels() {
 
 function removeCalloutLabels() {
   for (const label of document.querySelectorAll(`.${CALLOUT_LABEL}`)) label.remove();
-}
-
-// --- Quotes over several lines -----------------------------------------------
-
-// Whether every line of a block's source is a quote line. Only then has Roam
-// stripped a "> " from the start of each line after the first.
-const quoteLines = (text) =>
-  text.startsWith("> ") && text.includes("\n") && text.split("\n").slice(1).every((line) => line.startsWith("> "));
-
-// The width of "> " in an element's font, cached per font. A font that hasn't
-// loaded yet is measured in its fallback, so that width isn't cached.
-const quoteWidths = new Map();
-
-function quoteWidth(el) {
-  const cs = getComputedStyle(el);
-  const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  if (quoteWidths.has(font)) return quoteWidths.get(font);
-  const ctx = document.createElement("canvas").getContext("2d");
-  ctx.font = font;
-  const width = ctx.measureText("> ").width;
-  if (document.fonts.check(font)) quoteWidths.set(font, width);
-  return width;
-}
-
-// Each quote is looked at once: the attribute marks it, empty when its
-// source isn't quote lines only.
-function addQuoteIndents() {
-  for (const quote of document.querySelectorAll(`${V} blockquote.rm-bq:not([${QUOTE_MARK}]):not(.rm-block-ref *)`)) {
-    const text = blockText(quote.closest(V));
-    const lines = text !== null && quoteLines(text);
-    quote.setAttribute(QUOTE_MARK, lines ? "lines" : "");
-    if (lines) quote.style.setProperty("--roam-zen-quote-indent", `${quoteWidth(quote)}px`);
-  }
-}
-
-function removeQuoteIndents() {
-  for (const quote of document.querySelectorAll(`[${QUOTE_MARK}]`)) {
-    quote.removeAttribute(QUOTE_MARK);
-    quote.style.removeProperty("--roam-zen-quote-indent");
-  }
 }
 
 // --- Roam's copy of a clicked block ----------------------------------------
@@ -579,29 +468,6 @@ function portalCSS(block) {
   }`,
     );
   }
-
-  // The indent of a quote over several lines, in pixels.
-  const quote = block.querySelector(`blockquote.rm-bq[${QUOTE_MARK}="lines"]:not(.rm-block-ref *)`);
-  if (quote && isOn("quotes")) {
-    const indent = quote.style.getPropertyValue("--roam-zen-quote-indent");
-    if (indent) rules.push(quoteIndent(PORTAL, "blockquote.rm-bq:not(.rm-block-ref *)", indent));
-  }
-
-  // The static CSS gives the copy's checkboxes the width of "{{[[TODO]]}}".
-  // When all of the block's own TODOs are the older {{TODO}}, theirs instead.
-  // These rules are at least as specific as the static ones and come later
-  // in <head>, so they win.
-  const labels = todoBoxes(block).map((box) => box.querySelector(`:scope > .${TODO_LABEL}`));
-  if (isOn("todo") && labels.length && labels.every((l) => l?.classList.contains(TODO_PLAIN))) {
-    const box = ".rm-checkbox:not(.rm-block-ref *)";
-    rules.push(`
-  body.roam-zen--todo ${PORTAL} ${box}::after {
-    content: "{{TODO}}";
-  }
-  body.roam-zen--todo ${PORTAL} ${box}.rm-done::after {
-    content: "{{DONE}}";
-  }`);
-  }
   return rules.join("\n");
 }
 
@@ -621,7 +487,6 @@ const DECORATIONS = [
   { feature: "todo", add: addTodoLabels, remove: removeTodoLabels },
   { feature: "links", add: addAliasTails, remove: removeAliasTails },
   { feature: "quotes", add: addCalloutLabels, remove: removeCalloutLabels },
-  { feature: "quotes", add: addQuoteIndents, remove: removeQuoteIndents },
 ];
 
 const isOn = (feature) => document.body.classList.contains(`roam-zen--${feature}`);
@@ -678,13 +543,13 @@ function parse(text) {
   // Code blocks are edited in CodeMirror, not in this textarea.
   if (text.startsWith("```")) return flags.map(() => "");
 
-  // TODO/DONE (also the older {{TODO}}) and inline code first: nothing inside
-  // them is other markup, so they are blanked out for the passes below.
+  // TODO/DONE and inline code first: nothing inside them is other markup, so
+  // they are blanked out for the passes below.
   let work = text;
   const blank = (from, to) => {
     work = work.slice(0, from) + "\0".repeat(to - from) + work.slice(to);
   };
-  for (const m of text.matchAll(/\{\{(?:\[\[(?:TODO|DONE)\]\]|TODO|DONE)\}\}/g)) {
+  for (const m of text.matchAll(/\{\{\[\[(?:TODO|DONE)\]\]\}\}/g)) {
     const end = m.index + m[0].length;
     mark(m.index, end, "m");
     blank(m.index, end);
@@ -897,7 +762,6 @@ function attach(ta) {
     mirror.classList.toggle("rz-real-b", safe.bold);
     mirror.classList.toggle("rz-real-i", safe.italic);
   });
-  checkBold(cs);
   const link = document.querySelector(".roam-block .rm-page-ref--link");
   mirror.style.setProperty("--roam-zen-link-color", link ? getComputedStyle(link).color : cs.color);
   // The theme's quote colours, read from a hidden quote next to the textarea.
@@ -969,35 +833,10 @@ function read(id, fallback) {
   return value === undefined || value === null ? fallback : value;
 }
 
-// Whether the block font's bold is as wide as its regular. Width-neutral bold
-// is only needed when it isn't.
-let boldSafe = false;
-
-function toggleFeature(f) {
-  const on = Boolean(read(f.id, f.default));
-  document.body.classList.toggle(`roam-zen--${f.id}`, f.id === NEUTRAL_BOLD ? on && !boldSafe : on);
-}
-
-// The font check resolves later; by then the extension may be unloaded.
-function setBoldSafe(safe) {
-  if (!extensionAPI || safe.bold === boldSafe) return;
-  boldSafe = safe.bold;
-  toggleFeature(FEATURES.find((f) => f.id === NEUTRAL_BOLD));
-}
-
-// A heading is bold already, and bold is as wide as itself: its font is
-// checked at regular weight.
-const checkBold = (cs) =>
-  checkFont({
-    fontStyle: cs.fontStyle,
-    fontWeight: Number(cs.fontWeight) >= 600 ? "400" : cs.fontWeight,
-    fontSize: cs.fontSize,
-    fontFamily: cs.fontFamily,
-  }).then(setBoldSafe);
-
 function apply() {
-  for (const f of FEATURES) toggleFeature(f);
-  checkBold(getComputedStyle(document.querySelector(".roam-block") ?? document.body));
+  for (const f of FEATURES) {
+    document.body.classList.toggle(`roam-zen--${f.id}`, Boolean(read(f.id, f.default)));
+  }
   const opacity = read(OPACITY_SETTING, OPACITY_DEFAULT);
   const hidden = opacity === OPACITY_HIDDEN;
   document.body.style.setProperty("--roam-zen-marker-opacity", hidden ? "0" : opacity);

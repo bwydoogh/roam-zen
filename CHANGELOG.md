@@ -8,16 +8,6 @@ All notable changes to this project are documented here.
 
 - While you type, the styled editor only updates the part of the text that
   changed, so other extensions that watch the page have less to process.
-- Width-neutral bold is on by default and only applies when the font's bold is
-  wider than its regular, as in Roam's default font. Fonts whose bold has the
-  same width keep their real bold.
-
-### Fixed
-
-- Tags of several words, `#[[two words]]`, no longer move the text after them;
-  they show as `[[#two words]]` with dimmed brackets.
-- The later lines of a quote over several lines keep their place.
-- The older `{{TODO}}` and `{{DONE}}` forms no longer move the text after them.
 
 ## [0.1.0] - 2026-10-24
 

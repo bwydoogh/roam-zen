@@ -23,10 +23,8 @@ focus. Three parts work towards that:
 - **Rendered view: CSS.** Markers come back through `::before`/`::after` on the
   elements Roam renders, each feature scoped by a `roam-zen--<id>` class on `body`.
 - **Rendered view: decorations.** What CSS can't know comes from the block's source
-  through `roamAlphaAPI`: the TODO label (and whether it's the older `{{TODO}}`),
-  an alias's `](destination)` (in a `data-roam-zen-tail` attribute), a callout's
-  ` [[!TYPE]] ` label and the indent of a quote's later lines (in
-  `data-roam-zen-quote`). One
+  through `roamAlphaAPI`: the TODO label, an alias's `](destination)` (in a
+  `data-roam-zen-tail` attribute) and a callout's ` [[!TYPE]] ` label. One
   `MutationObserver` adds them in its callback, before the browser paints.
 - **Editor: the mirror.** The focused textarea's text turns transparent and a styled
   copy (`.roam-zen-mirror`) sits right behind it, patched from `parse()` and kept in
@@ -38,8 +36,7 @@ focus. Three parts work towards that:
   where the textarea puts it: colour, opacity, background, decoration, outlines and
   shadows are fine; padding, margins, font size, weight and style are not, unless
   they are traded for an equal negative margin (quotes, callouts) or proven
-  width-safe for the font (`checkFont`: real bold/italic in the mirror, and the
-  `roam-zen--neutralBold` stroke in the rendered view only when bold isn't).
+  width-safe for the font (`checkFont`, real bold/italic in the mirror only).
 - **The mirror must never wrap differently from the textarea.** `tick` compares
   heights and falls back to Roam's plain editor when the mirror needs more lines.
   Don't remove that check; it's what keeps a misaligned mirror from leaving styled
@@ -63,8 +60,7 @@ focus. Three parts work towards that:
   and removes it within one event. A decoration that changes width needs a
   stand-in there, or clicks after it land off: static CSS for the TODO label,
   and per-click CSS from `portalCSS` (written on a capturing `mousedown`, before
-  Roam's handler) for alias tails, callout labels, quote indents and the older
-  `{{TODO}}` form. Link text has no `c-N`
+  Roam's handler) for alias tails and callout labels. Link text has no `c-N`
   ids there, so an alias is found by the characters around it.
 - **Block refs show another block's text.** Markers and decorations are skipped
   inside `.rm-block-ref`, whose source isn't this block's.

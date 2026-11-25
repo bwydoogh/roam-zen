@@ -74,25 +74,16 @@ must not move.
 
 1. **Markers.** `**bold**`, `__italic__`, `^^highlight^^`, `~~strike~~` and
    `` `code` `` show their markers dimmed without focus.
-2. **Page refs.** `[[page]]` keeps its brackets, dimmed. `#[[two words]]` shows
-   as `[[#two words]]` with dimmed brackets, and the text after it doesn't
-   move. A one-word `#[[tag]]` still jumps.
+2. **Page refs.** `[[page]]` and `#[[two words]]` keep their brackets, dimmed.
 3. **TODO and DONE.** The checkbox sits where `{{` is, followed by a dimmed
    `[[TODO]]`; ticking it switches the label to DONE. In a proportional font the
-   checkbox shrinks to fit `{{` and its tick still fits. The older `{{TODO}}`
-   and `{{DONE}}` show the word without brackets; a block mixing both forms
-   pairs each label with its own form, and a click after either lands on the
-   character clicked.
+   checkbox shrinks to fit `{{` and its tick still fits.
 4. **Aliases.** `[text](url)`, `[text]([[Page]])` and `[text](((uid)))` show their
    full source dimmed. A block with an image `![](url)` next to an alias still
    pairs the right destination with each link.
 5. **Attributes.** `Name:: value` shows a dimmed second colon.
 6. **Quotes.** `> text` keeps its box, the box stays clear of the bullet, and the
-   first character sits where it does in the editor. In `> one` / `> two` /
-   `> three` (one block, several lines) every line's text keeps its place; only
-   the first line shows a dimmed `>`. A quote whose later lines don't all start
-   with `> ` keeps Roam's own layout there. (A click on a later line can put
-   the caret two characters early per line above it: Roam's own bug.)
+   first character sits where it does in the editor.
 7. **Callouts.** `[[>]] [[!TIP]] Title` plus a body line: the icon sits where
    `[[>]]` is, the title and body don't move. Try a foldable `[[!TIP]]-` and an
    unknown type.
@@ -104,12 +95,9 @@ must not move.
    after bold text, after a page ref, after an alias with a long URL, in a
    callout's title and on a later line of a wrapped block: the caret lands on the
    character you clicked.
-10. **Width check.** In a proportional font (Roam's default Inter), bold in the
-    editor and the rendered view is drawn with an outline, `body` has
-    `roam-zen--neutralBold`, bold doesn't shift, and italic stays upright in
-    the editor. In a monospace font with a same-width bold, `body` loses
-    `roam-zen--neutralBold` and both views show real bold. Turning
-    **Width-neutral bold** off brings back the real bold everywhere.
+10. **Width check.** In a proportional font, bold in the editor is drawn with an
+    outline and italic stays upright. Turn on **Width-neutral bold** and confirm
+    bold no longer shifts.
 11. **Block refs.** A `((ref))` to a block with bold, a TODO or a callout shows
     no extra markers inside the reference.
 12. **Settings.** Turn each of the four groups off and on without reloading; its
@@ -126,9 +114,7 @@ must not move.
 16. **Teardown.** Disable the extension: no `#roam-zen-style` or
     `#roam-zen-portal`, no `roam-zen` classes on `body`, no
     `.roam-zen-mirror`, `.roam-zen-todo` or `.roam-zen-callout` elements, no
-    `data-roam-zen-tail` or `data-roam-zen-quote` attributes, no
-    `--roam-zen-quote-indent` inline properties, and Roam's own rendering is
-    back.
+    `data-roam-zen-tail` attributes, and Roam's own rendering is back.
 
 ## Release checklist
 

@@ -11,7 +11,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const exposed = ["parse", "findAliases", "toRuns", "todoForms", "quoteLines", "CALLOUT_PREFIX"];
+const exposed = ["parse", "findAliases", "toRuns", "CALLOUT_PREFIX"];
 
 function buildHarness() {
   const source = readFileSync(join(repoRoot, "extension.js"), "utf8");
@@ -24,7 +24,7 @@ function buildHarness() {
 }
 
 const { dir, file } = buildHarness();
-const { parse, findAliases, toRuns, todoForms, quoteLines, CALLOUT_PREFIX } = await import(pathToFileURL(file).href);
+const { parse, findAliases, toRuns, CALLOUT_PREFIX } = await import(pathToFileURL(file).href);
 rmSync(dir, { recursive: true, force: true });
 
 let failures = 0;
@@ -85,8 +85,6 @@ check("nested refs", runs("[[a [[b]]]]"), [["m", "[["], ["l", "a "], ["m", "[["]
 // TODO/DONE: braces and brackets are markers, the word is dimmed less.
 check("todo", runs("{{[[TODO]]}} x"), [["m", "{{[[TODO]]}}"], ["", " x"]]);
 check("done", runs("{{[[DONE]]}}"), [["m", "{{[[DONE]]}}"]]);
-check("old todo", runs("{{TODO}} x"), [["m", "{{TODO}}"], ["", " x"]]);
-check("old done", runs("{{DONE}} x"), [["m", "{{DONE}}"], ["", " x"]]);
 
 // Aliases, whatever their destination.
 check("url alias", runs("[text](https://x.y/a_b)"), [["m", "["], ["l", "text"], ["m", "](https://x.y/a_b)"]]);
@@ -113,18 +111,6 @@ check("callout prefix parts", "[[>]] [[!TIP]]- T".match(CALLOUT_PREFIX).slice(1)
 check("alias count", findAliases("[a](x) and [b]([[P]]) and ![c](y) and [d](((u)))").length, 3);
 check("alias span", findAliases("see [a](x(y)) end"), [{ start: 4, textEnd: 6, end: 13 }]);
 check("unclosed alias", findAliases("[a](x"), []);
-
-// todoForms is paired with the checkboxes on screen the same way: one entry
-// per TODO or DONE, true for the older form without brackets.
-check("todo forms", todoForms("{{[[TODO]]}} a {{DONE}} b {{TODO}} c {{[[DONE]]}}"), [false, true, true, false]);
-check("todo forms skip code", todoForms("`{{TODO}}` {{[[TODO]]}}"), [false]);
-check("todo forms need both brackets", todoForms("{{[[TODO}} {{TODO]]}}"), []);
-
-// quoteLines: only a quote whose every line starts with "> " gets the indent.
-check("quote over lines", quoteLines("> one\n> two\n> three"), true);
-check("one-line quote", quoteLines("> one"), false);
-check("later line not quoted", quoteLines("> one\ntwo"), false);
-check("not a quote", quoteLines("one\n> two"), false);
 
 if (failures > 0) {
   console.error(`${failures} logic check(s) failed.`);
